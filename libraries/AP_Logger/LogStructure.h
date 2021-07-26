@@ -713,6 +713,22 @@ struct PACKED log_PSCZ {
     float throttle_out;
 };
 
+
+
+struct PACKED log_oaEsc {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;     
+    int32_t  rpm;
+    uint16_t voltage;
+    uint16_t current;
+    int16_t  mos_temp;
+    int16_t  cap_temp;
+    uint16_t thr_in;
+    uint16_t thr_out;
+};
+
+
+
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -721,6 +737,12 @@ struct PACKED log_PSCZ {
 #define PID_FMT    "QfffffffffB"
 #define PID_UNITS  "s----------"
 #define PID_MULTS  "F----------"
+
+#define ESC_LABELS "TimeUS,RPM,Volt,Curr,mT,cT,ThI,ThO"
+#define ESC_FMT   "QeCCccHH"
+#define ESC_UNITS "sqvAOO--"
+#define ESC_MULTS "FBBBBB--"
+
 
 // @LoggerMessage: ADSB
 // @Description: Automatic Dependant Serveillance - Broadcast detected vehicle information
@@ -1269,6 +1291,22 @@ LOG_STRUCTURE_FROM_AVOIDANCE \
     { LOG_TERRAIN_MSG, sizeof(log_TERRAIN), \
       "TERR","QBLLHffHH","TimeUS,Status,Lat,Lng,Spacing,TerrH,CHeight,Pending,Loaded", "s-DU-mm--", "F-GG-00--" }, \
 LOG_STRUCTURE_FROM_ESC_TELEM \
+    { LOG_ESC1_MSG, sizeof(log_oaEsc), \
+      "ESC1",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC2_MSG, sizeof(log_oaEsc), \
+      "ESC2",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC3_MSG, sizeof(log_oaEsc), \
+      "ESC3",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC4_MSG, sizeof(log_oaEsc), \
+      "ESC4",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC5_MSG, sizeof(log_oaEsc), \
+      "ESC5",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC6_MSG, sizeof(log_oaEsc), \
+      "ESC6",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC7_MSG, sizeof(log_oaEsc), \
+      "ESC7",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
+    { LOG_ESC8_MSG, sizeof(log_oaEsc), \
+      "ESC8",  ESC_FMT, ESC_LABELS, ESC_UNITS, ESC_MULTS }, \
     { LOG_CSRV_MSG, sizeof(log_CSRV), \
       "CSRV","QBfffB","TimeUS,Id,Pos,Force,Speed,Pow", "s#---%", "F-0000" }, \
     { LOG_PIDR_MSG, sizeof(log_PID), \
@@ -1433,6 +1471,14 @@ enum LogMessages : uint8_t {
     LOG_PSCZ_MSG,
     LOG_RAW_PROXIMITY_MSG,
     LOG_IDS_FROM_PRECLAND,
+    LOG_ESC1_MSG,
+    LOG_ESC2_MSG,
+    LOG_ESC3_MSG,
+    LOG_ESC4_MSG,
+    LOG_ESC5_MSG,
+    LOG_ESC6_MSG,
+    LOG_ESC7_MSG,
+    LOG_ESC8_MSG,
 
     _LOG_LAST_MSG_
 };

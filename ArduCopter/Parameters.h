@@ -652,6 +652,8 @@ public:
 #if MODE_GUIDED_ENABLED == ENABLED
     AP_Float guided_timeout;
 #endif
+
+    optimAero oa_module;
 };
 
 extern const AP_Param::Info        var_info[];

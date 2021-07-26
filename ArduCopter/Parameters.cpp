@@ -1079,6 +1079,11 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_GROUPINFO("GUID_TIMEOUT", 46, ParametersG2, guided_timeout, 3.0),
 #endif
 
+    // @Group: OPTIM
+    // @Path: ../libraries/AP_OA_EXT/optimAero.cpp
+    AP_SUBGROUPINFO(oa_module,"OPTIM_",47, ParametersG2, optimAero),
+
+
     AP_GROUPEND
 };
 

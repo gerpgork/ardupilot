@@ -253,6 +253,13 @@ void LoggerMessageWriter_WriteSysInfo::process() {
         stage = Stage::RC_PROTOCOL;
         FALLTHROUGH;
 
+    case Stage::OPTIM:
+        if (! _logger_backend->Write_Message("optimAero pub firmware 07-25-21")) {
+            return; // call me again
+        }
+        stage = Stage::RC_PROTOCOL;
+        FALLTHROUGH;        
+
     case Stage::RC_PROTOCOL:
         const char *prot = hal.rcin->protocol();
         if (prot == nullptr) {

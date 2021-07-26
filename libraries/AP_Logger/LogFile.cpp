@@ -592,3 +592,44 @@ void AP_Logger::Write_PSCZ(float pos_target_z, float pos_z, float vel_desired_z,
     };
     WriteBlock(&pkt, sizeof(pkt));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Write ESC status messages
+//   id starts from 0
+//   rpm is eRPM (rpm * 100)
+//   voltage is in centi-volts
+//   current is in centi-amps
+//   temperature is in centi-degrees Celsius
+//   temperature is in centi-degrees Celsius
+//   thr_in  %
+//   thr_out %
+void AP_Logger::Write_ESC(uint8_t id, uint64_t time_us, int32_t rpm, uint16_t voltage, uint16_t current, int16_t mos_temp, int16_t cap_temp, uint16_t thr_in,uint16_t thr_out)
+{
+    // sanity check id
+    if (id >= 8) {
+        return;
+    }
+    const struct log_oaEsc pkt{
+        LOG_PACKET_HEADER_INIT(uint8_t(LOG_ESC1_MSG+id)),
+        time_us     : time_us,
+        rpm         : rpm,
+        voltage     : voltage,
+        current     : current,
+        mos_temp    : mos_temp,
+        cap_temp    : cap_temp,
+        thr_in      : thr_in,
+        thr_out     : thr_out
+    };
+    WriteBlock(&pkt, sizeof(pkt));
+}

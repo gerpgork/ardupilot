@@ -311,6 +311,7 @@ public:
     void Write_Mission_Cmd(const AP_Mission &mission,
                                const AP_Mission::Mission_Command &cmd);
     void Write_RPM(const AP_RPM &rpm_sensor);
+    void Write_ESC(uint8_t id, uint64_t time_us, int32_t rpm, uint16_t voltage, uint16_t current, int16_t mos_temp, int16_t cap_temp, uint16_t thr_in, uint16_t thr_out);
     void Write_RallyPoint(uint8_t total,
                           uint8_t sequence,
                           const RallyLocation &rally_point);

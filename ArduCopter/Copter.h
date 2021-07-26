@@ -334,6 +334,9 @@ private:
 #ifdef USERHOOK_VARIABLES
 # include USERHOOK_VARIABLES
 #endif
+/* optimaero include*/
+//#include "optim_include.h"
+
 
     // Documentation of GLobals:
     typedef union {
@@ -890,14 +893,15 @@ private:
 
     // UserCode.cpp
     void userhook_init();
+    void userhook_400hz(); //optimaero    
     void userhook_FastLoop();
     void userhook_50Hz();
     void userhook_MediumLoop();
     void userhook_SlowLoop();
     void userhook_SuperSlowLoop();
-    void userhook_auxSwitch1(uint8_t ch_flag);
-    void userhook_auxSwitch2(uint8_t ch_flag);
-    void userhook_auxSwitch3(uint8_t ch_flag);
+    void userhook_auxSwitch1(RC_Channel::AuxSwitchPos ch_flag);
+    void userhook_auxSwitch2(RC_Channel::AuxSwitchPos ch_flag);
+    void userhook_auxSwitch3(RC_Channel::AuxSwitchPos ch_flag);
 
     // vehicle specific waypoint info helpers
     bool get_wp_distance_m(float &distance) const override;

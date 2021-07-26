@@ -14,6 +14,7 @@
 #include "AP_BattMonitor_FuelLevel_PWM.h"
 #include "AP_BattMonitor_Generator.h"
 #include "AP_BattMonitor_MPPT_PacketDigital.h"
+#include "AP_BattMonitor_OA.h" //optimAero
 
 #include <AP_HAL/AP_HAL.h>
 
@@ -202,6 +203,10 @@ AP_BattMonitor::init()
                 drivers[instance] = new AP_BattMonitor_MPPT_PacketDigital(*this, state[instance], _params[instance]);
                 break;
 #endif // HAL_MPPT_PACKETDIGITAL_CAN_ENABLE
+            /*optimAero*/
+            case Type::OPTIMAERO:
+                drivers[instance] = new AP_BattMonitor_OA(*this, state[instance], _params[instance],instance);
+                break; 
             case Type::NONE:
             default:
                 break;

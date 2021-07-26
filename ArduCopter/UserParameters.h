@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AP_Param/AP_Param.h>
+#include <AP_OA_EXT/optimAero.h>
 
 class UserParameters {
 
