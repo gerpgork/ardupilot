@@ -50,7 +50,7 @@ AP_AHRS_DCM::reset_gyro_drift(void)
 
 
 /* if this was a watchdog reset then get home from backup registers */
-void AP_AHRS_DCM::load_watchdog_home()
+void AP_AHRS::load_watchdog_home()
 {
     const AP_HAL::Util::PersistentData &pd = hal.util->persistent_data;
     if (hal.util->was_watchdog_reset() && (pd.home_lat != 0 || pd.home_lon != 0)) {
@@ -69,11 +69,6 @@ AP_AHRS_DCM::update(bool skip_ins_update)
 {
     // support locked access functions to AHRS data
     WITH_SEMAPHORE(_rsem);
-
-    if (_last_startup_ms == 0) {
-        _last_startup_ms = AP_HAL::millis();
-        load_watchdog_home();
-    }
 
     AP_InertialSensor &_ins = AP::ins();
 
@@ -111,9 +106,6 @@ AP_AHRS_DCM::update(bool skip_ins_update)
 
     // update trig values including _cos_roll, cos_pitch
     update_trig();
-
-    // update AOA and SSA
-    update_AOA_SSA();
 
     backup_attitude();
 
@@ -233,9 +225,6 @@ AP_AHRS_DCM::reset(bool recover_eulers)
 
     }
 
-    if (_last_startup_ms == 0) {
-        load_watchdog_home();
-    }
     _last_startup_ms = AP_HAL::millis();
 }
 
@@ -349,9 +338,9 @@ AP_AHRS_DCM::normalize(void)
 // produce a yaw error value. The returned value is proportional
 // to sin() of the current heading error in earth frame
 float
-AP_AHRS_DCM::yaw_error_compass(void)
+AP_AHRS_DCM::yaw_error_compass(Compass &compass)
 {
-    const Vector3f &mag = _compass->get_field();
+    const Vector3f &mag = compass.get_field();
     // get the mag vector in the earth frame
     Vector2f rb = _dcm_matrix.mulXY(mag);
 
@@ -366,8 +355,8 @@ AP_AHRS_DCM::yaw_error_compass(void)
     }
 
     // update vector holding earths magnetic field (if required)
-    if( !is_equal(_last_declination,_compass->get_declination()) ) {
-        _last_declination = _compass->get_declination();
+    if( !is_equal(_last_declination, compass.get_declination()) ) {
+        _last_declination = compass.get_declination();
         _mag_earth.x = cosf(_last_declination);
         _mag_earth.y = sinf(_last_declination);
     }
@@ -437,7 +426,9 @@ bool AP_AHRS_DCM::use_fast_gains(void) const
 // return true if we should use the compass for yaw correction
 bool AP_AHRS_DCM::use_compass(void)
 {
-    if (!_compass || !_compass->use_for_yaw()) {
+    const Compass &compass = AP::compass();
+
+    if (!compass.use_for_yaw()) {
         // no compass available
         return false;
     }
@@ -488,7 +479,9 @@ AP_AHRS_DCM::drift_correction_yaw(void)
 
     const AP_GPS &_gps = AP::gps();
 
-    if (_compass && _compass->is_calibrating()) {
+    Compass &compass = AP::compass();
+
+    if (compass.is_calibrating()) {
         // don't do any yaw correction while calibrating
         return;
     }
@@ -497,20 +490,20 @@ AP_AHRS_DCM::drift_correction_yaw(void)
         /*
           we are using compass for yaw
          */
-        if (_compass->last_update_usec() != _compass_last_update) {
-            yaw_deltat = (_compass->last_update_usec() - _compass_last_update) * 1.0e-6f;
-            _compass_last_update = _compass->last_update_usec();
+        if (compass.last_update_usec() != _compass_last_update) {
+            yaw_deltat = (compass.last_update_usec() - _compass_last_update) * 1.0e-6f;
+            _compass_last_update = compass.last_update_usec();
             // we force an additional compass read()
             // here. This has the effect of throwing away
             // the first compass value, which can be bad
-            if (!_flags.have_initial_yaw && _compass->read()) {
-                const float heading = _compass->calculate_heading(_dcm_matrix);
+            if (!_flags.have_initial_yaw && compass.read()) {
+                const float heading = compass.calculate_heading(_dcm_matrix);
                 _dcm_matrix.from_euler(roll, pitch, heading);
                 _omega_yaw_P.zero();
                 _flags.have_initial_yaw = true;
             }
             new_value = true;
-            yaw_error = yaw_error_compass();
+            yaw_error = yaw_error_compass(compass);
 
             // also update the _gps_last_update, so if we later
             // disable the compass due to significant yaw error we
@@ -1037,7 +1030,7 @@ bool AP_AHRS_DCM::get_position(struct Location &loc) const
         gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
         loc.alt = gps.location().alt;
     } else {
-        loc.alt = baro.get_altitude() * 100 + _home.alt;
+        loc.alt = baro.get_altitude() * 100 + AP::ahrs().get_home().alt;
     }
     loc.relative_alt = 0;
     loc.terrain_alt = 0;
@@ -1093,7 +1086,7 @@ bool AP_AHRS_DCM::airspeed_estimate(uint8_t airspeed_index, float &airspeed_ret)
     return true;
 }
 
-bool AP_AHRS_DCM::set_home(const Location &loc)
+bool AP_AHRS::set_home(const Location &loc)
 {
     WITH_SEMAPHORE(_rsem);
     // check location is valid
@@ -1134,7 +1127,7 @@ void AP_AHRS_DCM::get_relative_position_D_home(float &posD) const
     const auto &gps = AP::gps();
     if (_gps_use == GPSUse::EnableWithHeight &&
         gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
-        posD = (_home.alt - gps.location().alt) * 0.01;
+        posD = (AP::ahrs().get_home().alt - gps.location().alt) * 0.01;
     } else {
         posD = -AP::baro().get_altitude();
     }

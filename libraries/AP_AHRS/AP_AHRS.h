@@ -51,6 +51,8 @@ class AP_AHRS_View;
 
 #define AP_AHRS_NAVEKF_SETTLE_TIME_MS 20000     // time in milliseconds the ekf needs to settle after being started
 
+#include <AP_NMEA_Output/AP_NMEA_Output.h>
+
 class AP_AHRS : public AP_AHRS_DCM {
     friend class AP_AHRS_View;
 public:
@@ -72,6 +74,10 @@ public:
     static AP_AHRS *get_singleton() {
         return _singleton;
     }
+
+    // allow for runtime change of orientation
+    // this makes initial config easier
+    void update_orientation();
 
     // return the smoothed gyro vector corrected for drift
     const Vector3f &get_gyro(void) const override;
@@ -138,10 +144,10 @@ public:
     // set the EKF's origin location in 10e7 degrees.  This should only
     // be called when the EKF has no absolute position reference (i.e. GPS)
     // from which to decide the origin on its own
-    bool set_origin(const Location &loc) override WARN_IF_UNUSED;
+    bool set_origin(const Location &loc) WARN_IF_UNUSED;
 
     // returns the inertial navigation origin in lat/lon/alt
-    bool get_origin(Location &ret) const override WARN_IF_UNUSED;
+    bool get_origin(Location &ret) const WARN_IF_UNUSED;
 
     bool have_inertial_nav() const override;
 
@@ -322,6 +328,46 @@ public:
     // create a view
     AP_AHRS_View *create_view(enum Rotation rotation, float pitch_trim_deg=0);
 
+    // write AOA and SSA information to dataflash logs:
+    void Write_AOA_SSA(void) const;
+
+    // return AOA
+    float getAOA(void) const { return _AOA; }
+
+    // return SSA
+    float getSSA(void) const { return _SSA; }
+
+    /*
+     * home-related functionality
+     */
+
+    // get the home location. This is const to prevent any changes to
+    // home without telling AHRS about the change
+    const struct Location &get_home(void) const {
+        return _home;
+    }
+
+    // functions to handle locking of home.  Some vehicles use this to
+    // allow GCS to lock in a home location.
+    void lock_home() {
+        _home_locked = true;
+    }
+    bool home_is_locked() const {
+        return _home_locked;
+    }
+
+    // returns true if home is set
+    bool home_is_set(void) const {
+        return _home_is_set;
+    }
+
+    // set the home location in 10e7 degrees. This should be called
+    // when the vehicle is at this position. It is assumed that the
+    // current barometer and GPS altitudes correspond to this altitude
+    bool set_home(const Location &loc) WARN_IF_UNUSED;
+
+    void Log_Write_Home_And_Origin();
+
 protected:
     // optional view class
     AP_AHRS_View *_view;
@@ -338,7 +384,7 @@ private:
         ,TWO = 2
 #endif
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-        ,SITL = 10
+        ,SIM = 10
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
         ,EXTERNAL = 11
@@ -381,6 +427,15 @@ private:
     // get the index of the current primary IMU
     uint8_t get_primary_IMU_index(void) const;
 
+    /*
+     * home-related state
+     */
+    void load_watchdog_home();
+    bool _checked_watchdog_home;
+    struct Location _home;
+    bool _home_is_set :1;
+    bool _home_locked :1;
+
     // avoid setting current state repeatedly across all cores on all EKFs:
     enum class TriState {
         False = 0,
@@ -390,10 +445,17 @@ private:
 
     TriState terrainHgtStableState = TriState::UNKNOWN;
 
+    /*
+     * private AOA and SSA-related state and methods
+     */
+    float _AOA, _SSA;
+    uint32_t _last_AOA_update_ms;
+    void update_AOA_SSA(void);
+
     EKFType last_active_ekf_type;
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    SITL::SITL *_sitl;
+    SITL::SIM *_sitl;
     uint32_t _last_body_odm_update_ms;
     void update_SITL(void);
 #endif    
@@ -401,6 +463,10 @@ private:
 #if HAL_EXTERNAL_AHRS_ENABLED
     void update_external(void);
 #endif    
+
+#if HAL_NMEA_OUTPUT_ENABLED
+    class AP_NMEA_Output* _nmea_out;
+#endif
 };
 
 namespace AP {

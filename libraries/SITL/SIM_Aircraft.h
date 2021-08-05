@@ -32,6 +32,7 @@
 #include "SIM_Buzzer.h"
 #include "SIM_Battery.h"
 #include <Filter/Filter.h>
+#include "SIM_JSON_Master.h"
 
 namespace SITL {
 
@@ -152,7 +153,7 @@ public:
     float get_battery_voltage() const { return battery_voltage; }
 
 protected:
-    SITL *sitl;
+    SIM *sitl;
     // origin of position vector
     Location origin;
     // home location

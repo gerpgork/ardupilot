@@ -297,7 +297,7 @@ const AP_Param::Info Rover::var_info[] = {
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     // @Group: SIM_
     // @Path: ../libraries/SITL/SITL.cpp
-    GOBJECT(sitl, "SIM_", SITL::SITL),
+    GOBJECT(sitl, "SIM_", SITL::SIM),
 #endif
 
     // @Group: AHRS_
@@ -690,7 +690,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
 ParametersG2::ParametersG2(void)
     :
 #if ADVANCED_FAILSAFE == ENABLED
-    afs(rover.mode_auto.mission),
+    afs(),
 #endif
     beacon(rover.serial_manager),
     motors(rover.ServoRelayEvents, wheel_rate_control),

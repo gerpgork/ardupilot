@@ -25,6 +25,7 @@ import socket
 import struct
 import random
 import threading
+import enum
 
 from MAVProxy.modules.lib import mp_util
 
@@ -32,6 +33,7 @@ from pymavlink import mavparm
 from pymavlink import mavwp, mavutil, DFReader
 from pymavlink import mavextra
 from pymavlink.rotmat import Vector3
+from pymavlink import quaternion
 
 from pysim import util, vehicleinfo
 
@@ -40,18 +42,24 @@ try:
 except ImportError:
     import Queue
 
-MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE)
-MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE)
-MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
-                                        mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE)
-MAVLINK_SET_POS_TYPE_MASK_FORCE = mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET
-MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE = mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
-MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE = mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+
+# Enumeration convenience class for mavlink POSITION_TARGET_TYPEMASK
+class MAV_POS_TARGET_TYPE_MASK(enum.IntEnum):
+    POS_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE)
+    VEL_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE)
+    ACC_IGNORE = (mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
+                  mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE)
+    FORCE_SET  = mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET
+    YAW_IGNORE = mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE
+    YAW_RATE_IGNORE = mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+    POS_ONLY   = VEL_IGNORE | ACC_IGNORE | YAW_IGNORE | YAW_RATE_IGNORE
+    LAST_BYTE  = 0xF000
+
 
 MAV_FRAMES_TO_TEST = [
     mavutil.mavlink.MAV_FRAME_GLOBAL,
@@ -1945,7 +1953,7 @@ class AutoTest(ABC):
         for message_info in message_infos:
             for define in defines:
                 message_info = re.sub(define, defines[define], message_info)
-            m = re.match(r'\s*LOG_\w+\s*,\s*sizeof\([^)]+\)\s*,\s*"(\w+)"\s*,\s*"(\w+)"\s*,\s*"([\w,]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*$', message_info)  # noqa
+            m = re.match(r'\s*LOG_\w+\s*,\s*sizeof\([^)]+\)\s*,\s*"(\w+)"\s*,\s*"(\w+)"\s*,\s*"([\w,]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*(,\s*true)?\s*$', message_info)  # noqa
             if m is None:
                 continue
             (name, fmt, labels, units, multipliers) = (m.group(1), m.group(2), m.group(3), m.group(4), m.group(5))
@@ -1982,8 +1990,8 @@ class AutoTest(ABC):
                         if type(line) == bytes:
                             line = line.decode("utf-8")
                         if state == state_outside:
-                            if (re.match(r"\s*AP::logger\(\)[.]Write\(", line) or
-                                    re.match(r"\s*logger[.]Write\(", line)):
+                            if (re.match(r"\s*AP::logger\(\)[.]Write(?:Streaming)?\(", line) or
+                                    re.match(r"\s*logger[.]Write(?:Streaming)?\(", line)):
                                 state = state_inside
                                 line = re.sub("//.*", "", line) # trim comments
                                 log_write_statement = line
@@ -2007,10 +2015,10 @@ class AutoTest(ABC):
                 log_write_statement = re.sub(define, defines[define], log_write_statement)
             # fair warning: order is important here because of the
             # NKT/XKT special case below....
-            my_re = r' logger[.]Write\(\s*"(\w+)"\s*,\s*"([\w,]+)".*\);'
+            my_re = r' logger[.]Write(?:Streaming)?\(\s*"(\w+)"\s*,\s*"([\w,]+)".*\);'
             m = re.match(my_re, log_write_statement)
             if m is None:
-                my_re = r' AP::logger\(\)[.]Write\(\s*"(\w+)"\s*,\s*"([\w,]+)".*\);'
+                my_re = r' AP::logger\(\)[.]Write(?:Streaming)?\(\s*"(\w+)"\s*,\s*"([\w,]+)".*\);'
                 m = re.match(my_re, log_write_statement)
             if m is None:
                 raise NotAchievedException("Did not match (%s) with (%s)" % (log_write_statement, str(my_re)))
@@ -2705,18 +2713,18 @@ class AutoTest(ABC):
 
     def sim_location(self):
         """Return current simulator location."""
-        m = self.mav.recv_match(type='SIMSTATE', blocking=True)
+        m = self.poll_message('SIM_STATE')
         return mavutil.location(m.lat*1.0e-7,
-                                m.lng*1.0e-7,
-                                0,
+                                m.lon*1.0e-7,
+                                m.alt,
                                 math.degrees(m.yaw))
 
     def sim_location_int(self):
         """Return current simulator location."""
-        m = self.mav.recv_match(type='SIMSTATE', blocking=True)
+        m = self.poll_message('SIM_STATE')
         return mavutil.location(m.lat,
-                                m.lng,
-                                0,
+                                m.lon,
+                                m.alt,
                                 math.degrees(m.yaw))
 
     def save_wp(self, ch=7):
@@ -2727,6 +2735,55 @@ class AutoTest(ABC):
         self.delay_sim_time(1)
         self.set_rc(ch, 1000)
         self.delay_sim_time(1)
+
+    def create_simple_relhome_mission(self, items_in, target_system=1, target_component=1):
+        '''takes a list of (type, n, e, alt) items.  Creates a mission in
+        absolute frame using alt as relative-to-home and n and e as
+        offsets in metres from home'''
+
+        # add a dummy waypoint for home
+        items = [(mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0)]
+        items.extend(items_in)
+        seq = 0
+        ret = []
+        for (t, n, e, alt) in items:
+            lat = 0
+            lng = 0
+            if n != 0 or e != 0:
+                loc = self.home_relative_loc_ne(n, e)
+                lat = loc.lat
+                lng = loc.lng
+            p1 = 0
+            frame = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+            if not self.ardupilot_stores_frame_for_cmd(t):
+                frame = mavutil.mavlink.MAV_FRAME_GLOBAL
+            ret.append(self.mav.mav.mission_item_int_encode(
+                target_system,
+                target_component,
+                seq, # seq
+                frame,
+                t,
+                0, # current
+                0, # autocontinue
+                p1, # p1
+                0, # p2
+                0, # p3
+                0, # p4
+                int(lat*1e7), # latitude
+                int(lng*1e7), # longitude
+                alt, # altitude
+                mavutil.mavlink.MAV_MISSION_TYPE_MISSION),
+            )
+            seq += 1
+
+        return ret
+
+    def upload_simple_relhome_mission(self, items, target_system=1, target_component=1):
+        mission = self.create_simple_relhome_mission(
+            items,
+            target_system=target_system,
+            target_component=target_component)
+        self.check_mission_upload_download(mission)
 
     def get_mission_count(self):
         return self.get_parameter("MIS_TOTAL")
@@ -2972,6 +3029,8 @@ class AutoTest(ABC):
         self.stop_mavproxy(mavproxy)
 
     def log_upload(self):
+        self.progress("Log upload disabled as CI artifacts are good")
+        return
         if len(self.fail_list) > 0 and os.getenv("AUTOTEST_UPLOAD"):
             # optionally upload logs to server so we can see travis failure logs
             import datetime
@@ -3122,8 +3181,10 @@ class AutoTest(ABC):
                 raise ValueError("count %u not handled" % count)
         self.progress("Files same")
 
-    def assert_receive_message(self, type, timeout=1):
+    def assert_receive_message(self, type, timeout=1, verbose=False):
         m = self.mav.recv_match(type=type, blocking=True, timeout=timeout)
+        if verbose:
+            self.progress("Received (%s)" % str(m))
         if m is None:
             raise NotAchievedException("Did not get %s" % type)
         return m
@@ -3781,6 +3842,54 @@ class AutoTest(ABC):
                               (delta, timeout))
                 return True
 
+    def wait_attitude(self, desroll=None, despitch=None, timeout=2, tolerance=10, message_type='ATTITUDE'):
+        '''wait for an attitude (degrees)'''
+        if desroll is None and despitch is None:
+            raise ValueError("despitch or desroll must be supplied")
+        tstart = self.get_sim_time()
+        while True:
+            if self.get_sim_time_cached() - tstart > timeout:
+                raise AutoTestTimeoutException("Failed to achieve attitude")
+            m = self.assert_receive_message(message_type, timeout=60)
+            roll_deg = math.degrees(m.roll)
+            pitch_deg = math.degrees(m.pitch)
+            self.progress("wait_att: roll=%f desroll=%s pitch=%f despitch=%s" %
+                          (roll_deg, desroll, pitch_deg, despitch))
+            if desroll is not None and abs(roll_deg - desroll) > tolerance:
+                continue
+            if despitch is not None and abs(pitch_deg - despitch) > tolerance:
+                continue
+            return
+
+    def wait_attitude_quaternion(self,
+                                 desroll=None,
+                                 despitch=None,
+                                 timeout=2,
+                                 tolerance=10,
+                                 message_type='ATTITUDE_QUATERNION'):
+        '''wait for an attitude (degrees)'''
+        if desroll is None and despitch is None:
+            raise ValueError("despitch or desroll must be supplied")
+        tstart = self.get_sim_time()
+        while True:
+            if self.get_sim_time_cached() - tstart > timeout:
+                raise AutoTestTimeoutException("Failed to achieve attitude")
+            m = self.poll_message(message_type)
+            q = quaternion.Quaternion([m.q1, m.q2, m.q3, m.q4])
+            euler = q.euler
+            roll = euler[0]
+            pitch = euler[1]
+            roll_deg = math.degrees(roll)
+            pitch_deg = math.degrees(pitch)
+            self.progress("wait_att_quat: roll=%f desroll=%s pitch=%f despitch=%s" %
+                          (roll_deg, desroll, pitch_deg, despitch))
+            if desroll is not None and abs(roll_deg - desroll) > tolerance:
+                continue
+            if despitch is not None and abs(pitch_deg - despitch) > tolerance:
+                continue
+            self.progress("wait_att_quat: achieved")
+            return
+
     def CPUFailsafe(self):
         '''Most vehicles just disarm on failsafe'''
         # customising the SITL commandline ensures the process will
@@ -4039,9 +4148,9 @@ class AutoTest(ABC):
                     self.progress("%s want=%f autopilot=%s (attempt=%u/%u)" %
                                   (name, value, autopilot_values.get(name, 'None'), i+1, attempts))
                 if name not in autopilot_values:
-                    self.send_get_parameter_direct(name)
                     if verbose:
                         self.progress("Requesting (%s)" % (name,))
+                    self.send_get_parameter_direct(name)
                     continue
                 delta = abs(autopilot_values[name] - value)
                 if delta <= epsilon_pct*0.01*abs(value):
@@ -4658,7 +4767,7 @@ class AutoTest(ABC):
         data = "dist=%f max=%f (simstate: %s start-loc: %s)" % (dist, dist_max, simstate_loc, start_loc)
 
         if dist > dist_max:
-            raise NotAchievedException("simstate from startup location: %s" % data)
+            raise NotAchievedException("simstate far from startup location: %s" % data)
         self.progress("Simstate Close to startup location: %s" % data)
 
     def reach_distance_manual(self, distance):
@@ -5865,6 +5974,11 @@ Also, ignores heartbeats not from our target system'''
             self.progress("Not alive after test", send_statustext=False)
             if self.sitl.isalive():
                 self.progress("pexpect says it is alive")
+                for tool in "dumpstack.sh", "dumpcore.sh":
+                    tool_filepath = os.path.join(self.rootdir(), 'Tools', 'scripts', tool)
+                    if util.run_cmd([tool_filepath, str(self.sitl.pid)]) != 0:
+                        self.progress("Failed %s" % (tool,))
+                        return False
             else:
                 self.progress("pexpect says it is dead")
             passed = False
@@ -7080,10 +7194,8 @@ Also, ignores heartbeats not from our target system'''
             # wait until we definitely know where we are:
             self.poll_home_position(timeout=120)
 
-            ss = self.mav.recv_match(type='SIMSTATE', blocking=True, timeout=1)
-            if ss is None:
-                raise NotAchievedException("Did not get SIMSTATE")
-            self.progress("Got SIMSTATE (%s)" % str(ss))
+            ss = self.poll_message("SIM_STATE")
+            self.progress("Got SIM_STATE (%s)" % str(ss))
 
             self.run_cmd(mavutil.mavlink.MAV_CMD_FIXED_MAG_CAL_YAW,
                          math.degrees(ss.yaw), # param1
@@ -8058,11 +8170,10 @@ Also, ignores heartbeats not from our target system'''
                 self.sysid_thismav(),  # target system_id
                 1,  # target component id
                 mav_frame,
-                MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                MAV_POS_TARGET_TYPE_MASK.VEL_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.YAW_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                 int(lat * 1.0e7),  # lat
                 int(lng * 1.0e7),  # lon
                 alt,  # alt
@@ -8126,10 +8237,9 @@ Also, ignores heartbeats not from our target system'''
                     self.sysid_thismav(),  # target system_id
                     1,  # target component id
                     frame,
-                    MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE |
-                    MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                    MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                    MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                    MAV_POS_TARGET_TYPE_MASK.VEL_IGNORE |
+                    MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                    MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                     int(targetpos.lat * 1.0e7),  # lat
                     int(targetpos.lng * 1.0e7),  # lon
                     to_alt_frame(targetpos.alt, frame_name),  # alt
@@ -8156,10 +8266,9 @@ Also, ignores heartbeats not from our target system'''
                     self.sysid_thismav(),  # target system_id
                     1,  # target component id
                     frame,
-                    MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE |
-                    MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                    MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                    MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                    MAV_POS_TARGET_TYPE_MASK.VEL_IGNORE |
+                    MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                    MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                     int(targetpos.lat * 1.0e7),  # lat
                     int(targetpos.lng * 1.0e7),  # lon
                     to_alt_frame(targetpos.alt, frame_name),  # alt
@@ -8186,10 +8295,9 @@ Also, ignores heartbeats not from our target system'''
                         self.sysid_thismav(),  # target system_id
                         1,  # target component id
                         frame,
-                        MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                        MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE,
+                        MAV_POS_TARGET_TYPE_MASK.VEL_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.YAW_IGNORE,
                         int(targetpos.lat * 1.0e7),  # lat
                         int(targetpos.lng * 1.0e7),  # lon
                         to_alt_frame(targetpos.alt, frame_name),  # alt
@@ -8280,11 +8388,10 @@ Also, ignores heartbeats not from our target system'''
                 self.sysid_thismav(),  # target system_id
                 1,  # target component id
                 mav_frame,
-                MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE |
-                MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                MAV_POS_TARGET_TYPE_MASK.POS_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.YAW_IGNORE |
+                MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                 0,
                 0,
                 0,
@@ -8378,10 +8485,9 @@ Also, ignores heartbeats not from our target system'''
                         self.sysid_thismav(),  # target system_id
                         1,  # target component id
                         mav_frame,
-                        MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                        MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                        MAV_POS_TARGET_TYPE_MASK.POS_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                         0,
                         0,
                         0,
@@ -8408,10 +8514,9 @@ Also, ignores heartbeats not from our target system'''
                         self.sysid_thismav(),  # target system_id
                         1,  # target component id
                         mav_frame,
-                        MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                        MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE,
+                        MAV_POS_TARGET_TYPE_MASK.POS_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.YAW_RATE_IGNORE,
                         0,
                         0,
                         0,
@@ -8477,10 +8582,9 @@ Also, ignores heartbeats not from our target system'''
                         self.sysid_thismav(),  # target system_id
                         1,  # target component id
                         mav_frame,
-                        MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                        MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE,
+                        MAV_POS_TARGET_TYPE_MASK.POS_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.YAW_IGNORE,
                         0,
                         0,
                         0,
@@ -8507,10 +8611,9 @@ Also, ignores heartbeats not from our target system'''
                         self.sysid_thismav(),  # target system_id
                         1,  # target component id
                         mav_frame,
-                        MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE |
-                        MAVLINK_SET_POS_TYPE_MASK_FORCE |
-                        MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE,
+                        MAV_POS_TARGET_TYPE_MASK.POS_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.ACC_IGNORE |
+                        MAV_POS_TARGET_TYPE_MASK.YAW_IGNORE,
                         0,
                         0,
                         0,
@@ -9216,7 +9319,7 @@ switch value'''
         if ex is not None:
             raise ex
 
-    def ahrstrim(self):
+    def ahrstrim_preflight_cal(self):
         # setup with non-zero accel offsets
         self.set_parameters({
             "INS_ACCOFFS_X": 0.7,
@@ -9262,6 +9365,41 @@ switch value'''
                     (v, pname, expected_v, error_pct))
             self.progress("Correct value %.4f for %s error %.2f%%" %
                           (v, pname, error_pct))
+
+    def ahrstrim_attitude_correctness(self):
+        self.wait_ready_to_arm()
+        HOME = self.sitl_start_location()
+        for heading in 0, 90:
+            self.customise_SITL_commandline([
+                "--home", "%s,%s,%s,%s" % (HOME.lat, HOME.lng, HOME.alt, heading)
+            ])
+            for ahrs_type in [0, 2, 3]:
+                self.start_subsubtest("Testing AHRS_TYPE=%u" % ahrs_type)
+                self.context_push()
+                self.set_parameter("AHRS_EKF_TYPE", ahrs_type)
+                self.reboot_sitl()
+                self.wait_prearm_sys_status_healthy()
+                for (r, p) in [(0, 0), (9, 0), (2, -6), (10, 10)]:
+                    self.set_parameters({
+                        'AHRS_TRIM_X': math.radians(r),
+                        'AHRS_TRIM_Y': math.radians(p),
+                        "SIM_ACC_TRIM_X": math.radians(r),
+                        "SIM_ACC_TRIM_Y": math.radians(p),
+                    })
+                    self.wait_attitude(desroll=0, despitch=0, timeout=120, tolerance=1.5)
+                    if ahrs_type != 0:  # we don't get secondary msgs while DCM is primary
+                        self.wait_attitude(desroll=0, despitch=0, message_type='AHRS2', tolerance=1, timeout=120)
+                    #            self.send_debug_trap()
+                    self.wait_attitude_quaternion(desroll=0, despitch=0, tolerance=1, timeout=120)
+
+                self.context_pop()
+                self.reboot_sitl()
+
+    def ahrstrim(self):
+        self.start_subtest("Attitude Correctness")
+        self.ahrstrim_attitude_correctness()
+        self.start_subtest("Preflight Calibration")
+        self.ahrstrim_preflight_cal()
 
     def test_button(self):
         self.set_parameter("SIM_PIN_MASK", 0)
@@ -10383,6 +10521,26 @@ switch value'''
         self.reboot_sitl()
         if ex is not None:
             raise ex
+
+    def AHRS_ORIENTATION(self):
+        '''test AHRS_ORIENTATION parameter works'''
+        self.context_push()
+        self.wait_ready_to_arm()
+        original_imu = self.assert_receive_message("RAW_IMU", verbose=True)
+        self.set_parameter("AHRS_ORIENTATION", 16)  # roll-90
+        self.delay_sim_time(2)  # we update this on a timer
+        new_imu = self.assert_receive_message("RAW_IMU", verbose=True)
+        delta_zacc = original_imu.zacc - new_imu.zacc
+        delta_z_g = delta_zacc/1000.0  # milligravities -> gravities
+        if delta_z_g - 1 > 0.1:  # milligravities....
+            raise NotAchievedException("Magic AHRS_ORIENTATION update did not work (delta_z_g=%f)" % (delta_z_g,))
+        delta_yacc = original_imu.yacc - new_imu.yacc
+        delta_y_g = delta_yacc/1000.0  # milligravities -> gravities
+        if delta_y_g + 1 > 0.1:
+            raise NotAchievedException("Magic AHRS_ORIENTATION update did not work (delta_y_g=%f)" % (delta_y_g,))
+        self.context_pop()
+        self.reboot_sitl()
+        self.delay_sim_time(2)  # we update orientation on a timer
 
     def tests(self):
         return [
