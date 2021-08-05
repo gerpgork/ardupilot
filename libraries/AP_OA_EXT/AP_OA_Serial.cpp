@@ -35,7 +35,7 @@ AP_OA_Serial::AP_OA_Serial(optimAero::optimAero_State &_state,
 	state.status  			= optimAero::optimAero_SerialBad;
 	quad_msg_cnt 			= 0;
 	log_cnt 				= 0;
-
+	printf("SERIAL OA\n");
 }
 
 /*detect if connected*/
@@ -104,9 +104,9 @@ void AP_OA_Serial::LogESC(){
 	for(int i=0; i<6; i++){
 		logger->Write_ESC(  i,
 									AP_HAL::micros64(),
-									(int32_t)(state.rpm[i]*100),      //   rpm is eRPM (rpm * 100)
-									(uint16_t)(state.volt[i]*10),     //   voltage is in centi-volts
-									(uint16_t)(state.curr[i]*10),     //   current is in centi-amps
+									(int32_t)(state.rpm[i]),      //   rpm is eRPM (rpm * 100)
+									(uint16_t)(state.volt[i]),     //   voltage is in centi-volts
+									(uint16_t)(state.curr[i]),     //   current is in centi-amps
 									(int16_t)(state.mos_tmp[i]),  	  //   temperature is in centi-degrees Celsius
 									(int16_t)(state.cap_tmp[i]),
 									(uint16_t)(input_thr[i]),
@@ -159,6 +159,8 @@ void AP_OA_Serial::checkForData(void){
 						state.cap_tmp[i] 		= v2_in.cap_tmp[i];
 						state.mot_msg_num[i] 	= v2_in.msg_num[i];
 						state.rpm[i] 			= v2_in.rpm[i]*params.rpm_sf;
+
+
 						input_thr[i] 			= v2_in.input_thr[i];
 						output_thr[i] 			= v2_in.output_thr[i];
 						if(state.volt[i] > 0 && state.volt[i] < 6500)

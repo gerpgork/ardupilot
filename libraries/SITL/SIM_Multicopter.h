@@ -21,6 +21,7 @@
 #include "SIM_Aircraft.h"
 #include "SIM_Motor.h"
 #include "SIM_Frame.h"
+#include <AP_OA_EXT/optimAero.h>
 
 namespace SITL {
 
@@ -44,10 +45,20 @@ public:
         return new MultiCopter(frame_str);
     }
 
+    void optim_update();    
+    void write2Buffer(uint8_t* ptr, uint32_t len);
+
 protected:
     // calculate rotational and linear accelerations
     void calculate_forces(const struct sitl_input &input, Vector3f &rot_accel, Vector3f &body_accel);
     Frame *frame;
+    
+    //optim
+    struct HEX_OUT hex_motor_data;
+    uint32_t last_optim_update = 0;
+    OA_Parser data2send_;    
+    uint32_t wait_cnt = 0;
+
 };
 
 }

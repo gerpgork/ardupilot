@@ -19,6 +19,7 @@ AP_BattMonitor_OA::AP_BattMonitor_OA(AP_BattMonitor &mon,
     AP_BattMonitor_Backend(mon, mon_state, params),
     _instance(instance)
 {
+    printf("BATT OA\n");
 }
 
 // read the voltage 

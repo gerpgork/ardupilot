@@ -39,6 +39,17 @@ MultiCopter::MultiCopter(const char *frame_str) :
     num_motors = frame->num_motors;
     ground_behavior = GROUND_BEHAVIOR_NO_MOVEMENT;
     lock_step_scheduled = true;
+
+    //optim
+    hex_motor_data.start_bit[0] = 0x9b;
+    hex_motor_data.start_bit[1] = 0x8b;
+    hex_motor_data.start_bit[2] = 0x7b;
+    hex_motor_data.start_bit[3] = 0x6b;
+    for(int i=0; i<4; i++){
+        hex_motor_data.msg_num[i] = 0;
+    }
+
+    last_optim_update = AP_HAL::millis();    
 }
 
 // calculate rotational and linear accelerations
@@ -69,6 +80,7 @@ void MultiCopter::update(const struct sitl_input &input)
 
     update_dynamics(rot_accel);
     update_external_payload(input);
+    optim_update();
 
     // update lat/lon/altitude
     update_position();
@@ -78,3 +90,46 @@ void MultiCopter::update(const struct sitl_input &input)
     update_mag_field_bf();
 }
 
+void MultiCopter::optim_update(){
+
+    const uint32_t now = AP_HAL::millis();
+    wait_cnt++;
+    if(now - last_optim_update >= (1000/10)  && wait_cnt > 8000){
+
+        last_optim_update = now;
+        
+        for(int i=0; i<6; i++){
+            hex_motor_data.input_thr[i]    = 1;
+            hex_motor_data.cap_tmp[i]      = 10;
+            hex_motor_data.mos_tmp[i]      = 11;
+            hex_motor_data.output_thr[i]   = 2;
+            hex_motor_data.rpm[i]          = 101;
+            hex_motor_data.msg_num[i]      = (unsigned char)now;
+            hex_motor_data.current[i]      = (unsigned short)battery_current/4;
+            hex_motor_data.voltage[i]      = (unsigned short)battery_voltage;
+        }
+
+
+        optimAero *oa_ = AP::oa();
+        for(uint8_t i = 0; i< oa_->num_oa_connections(); i++)
+        {
+            AP_Int8 typeOA = oa_->get_type(i);
+            if(typeOA == optimAero::optimAero_TYPE_SERIAL)
+            {
+                write2Buffer((uint8_t *)&hex_motor_data, sizeof(hex_motor_data));
+                oa_->sendBuffer(data2send_);
+            }
+        }
+    }
+
+}
+
+void MultiCopter::write2Buffer(uint8_t* ptr, uint32_t len){
+
+    uint32_t i;
+    for(i=0; i<len;i++){
+        if(data2send_.bytesInBuffer < DATALINK_BUFFER_SIZE){
+            data2send_.datalinkBuffer[data2send_.bytesInBuffer++] = ptr[i];
+        }
+    }
+}
