@@ -206,6 +206,24 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SAFE_TIME", 42, AP_MotorsMulticopter, _safe_time, AP_MOTORS_SAFE_TIME_DEFAULT),
 
+    // @Param: FAIL_NUM
+    // @DisplayName: Motor that will fail
+    // @Description: Motor that will fail
+    // @Range: 0 10
+    // @Units: mot num
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("FAIL_NUM", 43, AP_MotorsMulticopter, _motor_fail_number, 0),    
+
+    // @Param: FAIL_PCT
+    // @DisplayName: motor fail pct
+    // @Description: Motor fail pct
+    // @Range: 0 100
+    // @Units: mot num
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("FAIL_PCT", 44, AP_MotorsMulticopter, _motor_fail_percent, 100),        
+
     AP_GROUPEND
 };
 
@@ -786,4 +804,18 @@ void AP_MotorsMulticopter::save_params_on_disarm()
     if (_throttle_hover_learn == HOVER_LEARN_AND_SAVE) {
         _throttle_hover.save();
     }
+}
+
+
+// set_motor_fail_pct - controls how much slow (as a percentage of it's regular speed) the failed motor will run (0 = stopped, 100 = normal)
+void AP_MotorsMulticopter::set_motor_fail_pct(uint8_t fail_pct)
+{
+    // sanity check fail pct
+    if (fail_pct < 0.0f) {
+        fail_pct = 0.0f;
+    }
+    if (fail_pct > 100) {
+        fail_pct = 100;
+    }
+    _motor_fail_percent = fail_pct;
 }

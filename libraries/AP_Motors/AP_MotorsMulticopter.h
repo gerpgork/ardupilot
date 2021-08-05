@@ -90,6 +90,10 @@ public:
     // converts desired thrust to linearized actuator output in a range of 0~1
     float               thrust_to_actuator(float thrust_in);
 
+    //set motor failure percent
+    void set_motor_fail_pct(uint8_t fail_pct);
+
+
     // set thrust compensation callback
     FUNCTOR_TYPEDEF(thrust_compensation_fn_t, void, float *, uint8_t);
     void                set_thrust_compensation_callback(thrust_compensation_fn_t callback) {

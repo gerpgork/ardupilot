@@ -70,6 +70,8 @@ public:
         MOTOR_FRAME_TYPE_NYT_PLUS = 16, // plus frame, no differential torque for yaw
         MOTOR_FRAME_TYPE_NYT_X = 17, // X frame, no differential torque for yaw
         MOTOR_FRAME_TYPE_BF_X_REV = 18, // X frame, betaflight ordering, reversed motors
+        MOTOR_FRAME_TYPE_DFC_15 = 19, // for direct force control  = 15 deg motor tilt
+        MOTOR_FRAME_TYPE_DFC_30 = 20, // for direct force control  = 30 deg motor tilt            
     };
 
     // return string corresponding to frame_type
@@ -291,6 +293,9 @@ protected:
     float               _thrust_boost_ratio;    // choice between highest and second highest motor output for output mixing (0 ~ 1). Zero is normal operation
 
     MAV_TYPE _mav_type; // MAV_TYPE_GENERIC = 0;
+
+    AP_Int8             _motor_fail_number;            // controls which motor will be slowed down/stopped during failure test
+    AP_Int8             _motor_fail_percent;        // controls how much motor is slowed down during test percetnage(0-100)
 
 private:
 

@@ -192,5 +192,19 @@ void Copter::tuning()
          copter.mode_systemid.set_magnitude(tuning_value);
 #endif
          break;
+
+    case TUNING_MOTOR_FAILURE:
+    {
+        uint8_t desired_mot_perc = 0;
+        if(tuning_value >= 1 && tuning_value <= 100){        
+            desired_mot_perc = (uint8_t)(tuning_value);
+        }else{
+            desired_mot_perc = 0;   
+        }
+        motors->set_motor_fail_pct(desired_mot_perc);
+        
+    }break;
+
+
     }
 }

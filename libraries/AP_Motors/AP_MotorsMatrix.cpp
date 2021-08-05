@@ -174,6 +174,22 @@ void AP_MotorsMatrix::output_to_motors()
             break;
     }
 
+    //motor fail optim
+    if ((_motor_fail_number > 0) && (_motor_fail_number < AP_MOTORS_MAX_NUM_MOTORS) && (_motor_fail_percent < 100)) {
+        
+        _actuator[_motor_fail_number-1] = _actuator[_motor_fail_number-1]  * (float)_motor_fail_percent/100.0f;
+
+        /*if(_motor_fail_percent <= 70){ // if motor is turned completely off we set fail flag --maybe this should be set at higher % of fail
+            _flags.motor_fail = 1; // if set to 1 then the motor thrust calc will not use a certain motor for thrust calc
+        }else{
+            _flags.motor_fail = 0;
+        }*/
+
+
+    }else{
+        //_flags.motor_fail = 0;
+    }    
+
     // convert output to PWM and send to each motor
     for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
@@ -215,6 +231,9 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     float   rpy_scale = 1.0f;           // this is used to scale the roll, pitch and yaw to fit within the motor limits
     float   yaw_allowed = 1.0f;         // amount of yaw we can fit in
     float   thr_adj;                    // the difference between the pilot's desired throttle and throttle_thrust_best_rpy
+    float   fx_thrust;                  // FX input value, same procedure above
+    float   fy_thrust;                  // FY input value, same procedure above
+
 
     // apply voltage and air pressure compensation
     const float compensation_gain = get_compensation_gain(); // compensation for battery voltage and altitude
@@ -223,6 +242,9 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     yaw_thrust = (_yaw_in + _yaw_in_ff) * compensation_gain;
     throttle_thrust = get_throttle() * compensation_gain;
     throttle_avg_max = _throttle_avg_max * compensation_gain;
+    fx_thrust  = _forward_in * get_compensation_gain();
+    fy_thrust  = _lateral_in * get_compensation_gain();
+
 
     // If thrust boost is active then do not limit maximum thrust
     throttle_thrust_max = _thrust_boost_ratio + (1.0f - _thrust_boost_ratio) * _throttle_thrust_max * compensation_gain;
@@ -271,7 +293,9 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
             // calculate the thrust outputs for roll and pitch
-            _thrust_rpyt_out[i] = roll_thrust * _roll_factor[i] + pitch_thrust * _pitch_factor[i];
+            _thrust_rpyt_out[i] = roll_thrust * _roll_factor[i] + pitch_thrust * _pitch_factor[i]
+                            + fx_thrust * _fx_factor[i] + fy_thrust * _fy_factor[i];
+
             // record lowest roll + pitch command
             if (_thrust_rpyt_out[i] < rp_low) {
                 rp_low = _thrust_rpyt_out[i];
@@ -568,6 +592,7 @@ void AP_MotorsMatrix::setup_motors(motor_frame_class frame_class, motor_frame_ty
     }
     set_initialised_ok(false);
     bool success = true;
+    bool dfc_skip_normalization = false; // DFC factors are normalizd already
 
     switch (frame_class) {
 
@@ -763,6 +788,33 @@ void AP_MotorsMatrix::setup_motors(motor_frame_class frame_class, motor_frame_ty
                     add_motor(AP_MOTORS_MOT_5,  -90, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 5);
                     add_motor(AP_MOTORS_MOT_6,  -30, AP_MOTORS_MATRIX_YAW_FACTOR_CW,  6);
                     break;
+
+               case MOTOR_FRAME_TYPE_DFC_15:
+                 //WOOT DFC 15 deg motor tilt - please see documentation for more info on Direct Force control
+                 //                                   //  roll        pitch         yaw           fx         fy     test order
+                 add_dfc_motor(AP_MOTORS_MOT_1,       -0.459512,     0.007798,   -0.123126,  0.258819,   0.000000,       2);
+                 add_dfc_motor(AP_MOTORS_MOT_2,        0.459512,     0.007798,    0.123126,  0.258819,   0.000000,       5);
+                 add_dfc_motor(AP_MOTORS_MOT_3,        0.236509,     0.394050,   -0.123126, -0.129410,  -0.224144,       6);
+                 add_dfc_motor(AP_MOTORS_MOT_4,       -0.223003,    -0.401848,    0.123126, -0.129410,  -0.224144,       3);
+                 add_dfc_motor(AP_MOTORS_MOT_5,       -0.236509,     0.394050,    0.123126, -0.129410,   0.224144,       1);
+                 add_dfc_motor(AP_MOTORS_MOT_6,        0.223003,    -0.401848,   -0.123126, -0.129410,   0.224144,       4);
+                 success = true;
+                 dfc_skip_normalization = true;
+                 break;
+
+              case MOTOR_FRAME_TYPE_DFC_30:
+                 //WOOT DFC 30 deg motor tilt - please see documentation for more info on Direct Force control
+                 //                                   //  roll        pitch         yaw           fx         fy     test order
+                 add_dfc_motor(AP_MOTORS_MOT_1,       -0.411987,     0.013506,   -0.237861,  0.500000,   0.000000,       2);
+                 add_dfc_motor(AP_MOTORS_MOT_2,        0.411987,     0.013506,    0.237861,  0.500000,   0.000000,       5);
+                 add_dfc_motor(AP_MOTORS_MOT_3,        0.217690,     0.350038,   -0.237861, -0.250000,  -0.433013,       6);
+                 add_dfc_motor(AP_MOTORS_MOT_4,       -0.194297,    -0.363544,    0.237861, -0.250000,  -0.433013,       3);
+                 add_dfc_motor(AP_MOTORS_MOT_5,       -0.217690,     0.350038,    0.237861, -0.250000,   0.433013,       1);
+                 add_dfc_motor(AP_MOTORS_MOT_6,        0.194297,    -0.363544,   -0.237861, -0.250000,   0.433013,       4);
+                 success = true;
+                 dfc_skip_normalization = true;
+                 break;
+
                 default:
                     // hexa frame class does not support this frame type
                     _frame_type_string = "UNSUPPORTED";
@@ -1052,7 +1104,10 @@ void AP_MotorsMatrix::setup_motors(motor_frame_class frame_class, motor_frame_ty
     } // switch frame_class
 
     // normalise factors to magnitude 0.5
-    normalise_rpy_factors();
+    if(!dfc_skip_normalization){
+        //dfc factors come prefactored
+      normalise_rpy_factors();
+     }
 
     set_initialised_ok(success);
 }
@@ -1116,6 +1171,33 @@ void AP_MotorsMatrix::disable_yaw_torque(void)
 {
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         _yaw_factor[i] = 0;
+    }
+}
+
+void AP_MotorsMatrix::add_dfc_motor(int8_t motor_num, float roll_fac, float pitch_fac, float yaw_fac, float fx_fac, float fy_fac, uint8_t testing_order)
+{
+    // ensure valid motor number is provided
+    if( motor_num >= 0 && motor_num < AP_MOTORS_MAX_NUM_MOTORS ) {
+
+        // increment number of motors if this motor is being newly motor_enabled
+        if( !motor_enabled[motor_num] ) {
+            motor_enabled[motor_num] = true;
+        }
+
+        // set roll, pitch, fx, fy, thottle factors and opposite motor (for stability patch)
+        _roll_factor[motor_num]     = roll_fac;
+        _pitch_factor[motor_num]    = pitch_fac;
+        _yaw_factor[motor_num]      = yaw_fac;
+        _fx_factor[motor_num]       = fx_fac;
+        _fy_factor[motor_num]       = fy_fac;
+        _throttle_factor[motor_num] = 1.0;
+
+        // set order that motor appears in test
+        _test_order[motor_num] = testing_order;
+
+        // call parent class method
+        add_motor_num(motor_num);
+
     }
 }
 
