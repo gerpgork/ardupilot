@@ -14,15 +14,13 @@ void ModeDFC::run()
     // convert pilot input to lean angles
     float target_roll, target_pitch;
 	float target_fx, target_fy;
-    get_pilot_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, copter.aparm.angle_max);
+    get_pilot_dfc_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, copter.aparm.angle_max);
 
     // get pilot's desired yaw rate
     float target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
 
-
 	target_fx = (float)(channel_pitch->get_control_in()*-1); // X is backwards -push forward on pitch stick is negative --to generate forward accel-need it to be positive
 	target_fy = (float)channel_roll->get_control_in();
-	printf("fx %f \n",target_fx);
 
     if (!motors->armed()) {
         // Motors should be Stopped
@@ -62,7 +60,7 @@ void ModeDFC::run()
     }
 
     // call attitude controller
-    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(0, 0, target_yaw_rate);
+    attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate);
 
     // output pilot's throttle
     attitude_control->set_throttle_out(get_pilot_desired_throttle(),
