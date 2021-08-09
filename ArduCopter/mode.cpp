@@ -168,6 +168,9 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_autorotate;
             break;
 #endif
+        case Mode::Number::DFC:
+            ret = &mode_dfc;
+            break;
 
         default:
             break;
@@ -388,6 +391,44 @@ void Copter::notify_flight_mode() {
     AP_Notify::flags.autopilot_mode = flightmode->is_autopilot();
     AP_Notify::flags.flight_mode = (uint8_t)flightmode->mode_number();
     notify.set_flight_mode_str(flightmode->name4());
+}
+
+void Mode::get_pilot_dfc_desired_lean_angles(float &roll_out, float &pitch_out, float angle_max, float angle_limit) const
+{
+
+    // throttle failsafe check
+    if (copter.failsafe.radio || !copter.ap.rc_receiver_present) {
+        roll_out = 0;
+        pitch_out = 0;
+        return;
+    }
+
+    // fetch roll and pitch inputs
+
+    /* RIGHT NOW roll and pitch are limited to 15 degrees (1500) - could make this a parameter */
+    roll_out        = 0.0f + 1500.0*(RC_Channels::rc_channel(CH_6)->norm_input()); //S1
+    pitch_out       = 0.0f + 1500.0*(RC_Channels::rc_channel(CH_7)->norm_input()); //S2
+
+    // limit max lean angle
+    angle_limit = constrain_float(angle_limit, 1000.0f, angle_max);
+
+    // scale roll and pitch inputs to ANGLE_MAX parameter range
+    float scaler = angle_max/(float)ROLL_PITCH_YAW_INPUT_MAX;
+    roll_out  *= scaler;
+    pitch_out *= scaler;
+
+    // do circular limit
+    float total_in = norm(pitch_out, roll_out);
+    if (total_in > angle_limit) {
+        float ratio = angle_limit / total_in;
+        roll_out  *= ratio;
+        pitch_out *= ratio;
+    }
+
+    // do lateral tilt to euler roll conversion
+    roll_out = (18000/M_PI) * atanf(cosf(pitch_out*(M_PI/18000))*tanf(roll_out*(M_PI/18000)));
+
+    // roll_out and pitch_out are returned
 }
 
 // get_pilot_desired_angle - transform pilot's roll or pitch input into a desired lean angle

@@ -220,6 +220,7 @@ public:
     friend class ModeThrow;
     friend class ModeZigZag;
     friend class ModeAutorotate;
+    friend class ModeDFC;
 
     Copter(void);
 
@@ -987,6 +988,7 @@ private:
 #if MODE_AUTOROTATE_ENABLED == ENABLED
     ModeAutorotate mode_autorotate;
 #endif
+    ModeDFC mode_dfc;
 
     // mode.cpp
     Mode *mode_from_mode_num(const Mode::Number mode);
