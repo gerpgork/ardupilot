@@ -405,9 +405,9 @@ void Mode::get_pilot_dfc_desired_lean_angles(float &roll_out, float &pitch_out, 
 
     // fetch roll and pitch inputs
 
-    /* RIGHT NOW roll and pitch are limited to 15 degrees (1500) - could make this a parameter */
-    roll_out        = 0.0f + 1500.0*(RC_Channels::rc_channel(CH_7)->norm_input()); //S1
-    pitch_out       = 0.0f + 1500.0*(RC_Channels::rc_channel(CH_8)->norm_input()); //S2
+    /* RIGHT NOW roll and pitch are limited to 30 degrees (3000) - could make this a parameter */
+    roll_out        = 0.0f + 3000.0*(RC_Channels::rc_channel(CH_7)->norm_input()); //S1
+    pitch_out       = 0.0f + 3000.0*(RC_Channels::rc_channel(CH_8)->norm_input()); //S2
 
     // limit max lean angle
     angle_limit = constrain_float(angle_limit, 1000.0f, angle_max);
