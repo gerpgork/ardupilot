@@ -36,11 +36,14 @@ void Motor::calculate_forces(const struct sitl_input &input,
     const float yaw_scale = radians(40);
 
     const float pwm = input.servos[motor_offset+servo];
-    float command = pwm_to_command(pwm);
+    //printf("servo %d = %f\n",servo, input.servos[motor_offset+servo]);
+    float pwm_delay = m_delay.update(pwm);
+    float command   = pwm_to_command(pwm_delay);
     float voltage_scale = voltage / voltage_max;
 
     if (voltage_scale < 0.1) {
         // battery is dead
+        printf("batt dead\n");
         rot_accel.zero();
         thrust.zero();
         current = 0;
@@ -58,7 +61,21 @@ void Motor::calculate_forces(const struct sitl_input &input,
     last_command = command;
 
     // the yaw torque of the motor
-    Vector3f rotor_torque(0, 0, yaw_factor * command * yaw_scale * voltage_scale);
+    float rt = yaw_factor  * yaw_scale * voltage_scale;
+    //printf("for %d, yaw %f\n",servo,rt);
+    Vector3f rotor_torque;
+    if(dfc_vec[0] > 1 || dfc_vec[0] < -1){
+        
+        rotor_torque  = 
+                {  
+                     sinf(radians(angle))* sinf(degrees(dfc_vec[servo]))*rt*command, 
+                    -cosf(radians(angle))* sinf(degrees(dfc_vec[servo]))*rt*command, 
+                     cosf(degrees(dfc_vec[servo])*rt*command)
+                };
+    }else{
+        rotor_torque = {0, 0, yaw_factor * command * yaw_scale * voltage_scale};
+    }
+
 
     // calculate velocity into prop, clipping at zero, assumes zero roll/pitch
     float velocity_in = MAX(0, -velocity_air_bf.z);
@@ -67,7 +84,23 @@ void Motor::calculate_forces(const struct sitl_input &input,
     float motor_thrust = calc_thrust(command, air_density, effective_prop_area, velocity_in, velocity_max * voltage_scale);
 
     // thrust in NED
-    thrust = {0, 0, -motor_thrust};
+    //printf("%d angle %f\n",servo,angle);
+    if(dfc_vec[0] > 1 || dfc_vec[0] < -1){
+        thrust= {    sinf(radians(angle))* sinf(degrees(dfc_vec[servo]))*motor_thrust, 
+                    -cosf(radians(angle))* sinf(degrees(dfc_vec[servo]))*motor_thrust, 
+                     cosf(degrees(dfc_vec[servo]))*motor_thrust
+                };
+    }else{
+        thrust = {0, 0, -motor_thrust};
+    }
+
+    if(motor_thrust > 0){
+    //::printf("thrust[%d] %.3f,%.3f,%.3f -- %f\n", servo, thrust.x,thrust.y,thrust.z, cosf(degrees(dfc_vec[servo])) );
+    //::printf("angle %f, dfc %f\n",angle, dfc_vec[servo]);
+    }
+
+    //::printf("%d -> angle %f, dfc %f\n",servo, angle, dfc_vec[servo]);
+
 
     // define the arm position relative to center of mass
     Vector3f arm(cosf(radians(angle)), sinf(radians(angle)), 0);
@@ -151,9 +184,25 @@ float Motor::get_current(void) const
     return current;
 }
 
+void Motor::setup_dfc(float dfc_angle){
+    //dfc_angle
+    /*
+        az = [90 -90 -30 150 30 150];
+        da = 30;
+        n  = [-da da -da -da da da];
+    */
+   dfc_vec[0] = -dfc_angle;
+   dfc_vec[1] =  dfc_angle;
+   dfc_vec[2] = -dfc_angle;
+   dfc_vec[3] =  dfc_angle;
+   dfc_vec[4] =  dfc_angle;
+   dfc_vec[5] = -dfc_angle;
+}
+
 // setup PWM ranges for this motor
 void Motor::setup_params(uint16_t _pwm_min, uint16_t _pwm_max, float _spin_min, float _spin_max, float _expo, float _slew_max,
-                         float _vehicle_mass, float _diagonal_size, float _power_factor, float _voltage_max)
+                         float _vehicle_mass, float _diagonal_size, float _power_factor, float _voltage_max,
+                         float latency)
 {
     mot_pwm_min = _pwm_min;
     mot_pwm_max = _pwm_max;
@@ -165,6 +214,8 @@ void Motor::setup_params(uint16_t _pwm_min, uint16_t _pwm_max, float _spin_min, 
     diagonal_size = _diagonal_size;
     power_factor = _power_factor;
     voltage_max = _voltage_max;
+
+    m_delay.reset_latency(latency);
 
     // assume 50% of mass on ring around center
     moment_of_inertia.x = vehicle_mass * 0.25 * sq(diagonal_size*0.5);

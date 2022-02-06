@@ -401,6 +401,8 @@ void Frame::load_frame_params(const char *model_json)
         FRAME_VAR(slew_max),
         FRAME_VAR(disc_area),
         FRAME_VAR(mdrag_coef),
+        FRAME_VAR(motor_delay),
+        FRAME_VAR(dfc_angle),
     };
     static_assert(sizeof(model) == sizeof(float)*ARRAY_SIZE(vars), "incorrect model vars");
 
@@ -442,7 +444,7 @@ void Frame::init(const char *frame_str, Battery *_battery)
     float ref_air_density = get_air_density(model.refAlt);
 
     const float momentum_drag = cos_tilt * model.mdrag_coef * airspeed_bf * sqrtf(ref_thrust * ref_air_density * model.disc_area);
-
+    ::printf("delay %f \n",model.motor_delay);
     if (momentum_drag > drag_force) {
         model.mdrag_coef *= drag_force / momentum_drag;
         areaCd = 0.0;
@@ -469,26 +471,36 @@ void Frame::init(const char *frame_str, Battery *_battery)
 
     for (uint8_t i=0; i<num_motors; i++) {
         motors[i].setup_params(model.pwmMin, model.pwmMax, model.spin_min, model.spin_max, model.propExpo, model.slew_max,
-                               model.mass, model.diagonal_size, power_factor, model.maxVoltage);
+                               model.mass, model.diagonal_size, power_factor, model.maxVoltage, model.motor_delay);
+        motors[i].setup_dfc(model.dfc_angle);
     }
 
-
+    
 #if 0
     // useful debug code for thrust curve
     {
-        motors[0].set_slew_max(0);
+        uint8_t mot_num = 5;
+        motors[mot_num].set_slew_max(0);
         struct sitl_input input {};
         for (uint16_t pwm = 1000; pwm < 2000; pwm += 50) {
-            input.servos[0] = pwm;
+            input.servos[mot_num] = pwm;
 
             Vector3f rot_accel {}, thrust {};
             Vector3f vel_air_bf {};
-            motors[0].calculate_forces(input, motor_offset, rot_accel, thrust, vel_air_bf,
-                                       ref_air_density, velocity_max, effective_prop_area, battery->get_voltage());
-            ::printf("pwm[%u] cmd=%.3f thrust=%.3f hovthst=%.3f\n",
-                     pwm, motors[0].pwm_to_command(pwm), -thrust.z*num_motors, hover_thrust);
+            motors[mot_num].calculate_forces(input, motor_offset, rot_accel, thrust, vel_air_bf,
+                                       ref_air_density, velocity_max, effective_prop_area, 44.0); //battery->get_voltage()
+            //::printf("pwm[%u] cmd=%.3f thrust=%.3f hovthst=%.3f\n",
+            //         pwm, motors[0].pwm_to_command(pwm), -thrust.z*num_motors, hover_thrust);
+            ::printf("pwm[%u] cmd=%.3f thrust=(%.3f,%.3f,%.3f) tor=(%.3f,%.3f,%.3f)\n",
+                     pwm, motors[mot_num].pwm_to_command(pwm),
+                     thrust.x,
+                     thrust.y,
+                     thrust.z,
+                     rot_accel.x,
+                     rot_accel.y,
+                     rot_accel.z);            
         }
-        motors[0].set_slew_max(model.slew_max);
+        motors[mot_num].set_slew_max(model.slew_max);
     }
 #endif
 
@@ -539,6 +551,12 @@ void Frame::calculate_forces(const Aircraft &aircraft,
             rpm[i] = motors[i].get_command() * AP::sitl()->vibe_motor * 60.0f;
         }
     }
+
+    //oa print all thrust
+    #if 0
+    ::printf("x=%.3f y=%.3f z=%.3f\n",
+                thrust.x, thrust.y, thrust.z);
+    #endif
 
     body_accel = thrust/aircraft.gross_mass();
 

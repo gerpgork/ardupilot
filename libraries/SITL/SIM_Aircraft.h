@@ -334,6 +334,8 @@ private:
     IntelligentEnergy24 *ie24;
     SIM_Precland *precland;
     class I2C *i2c;
+
+    uint64_t time_hold = 0;
 };
 
 } // namespace SITL

@@ -80,7 +80,7 @@ void MultiCopter::update(const struct sitl_input &input)
 
     update_dynamics(rot_accel);
     update_external_payload(input);
-    optim_update();
+    //optim_update();
 
     // update lat/lon/altitude
     update_position();

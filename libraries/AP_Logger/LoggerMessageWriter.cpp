@@ -254,7 +254,7 @@ void LoggerMessageWriter_WriteSysInfo::process() {
         FALLTHROUGH;
 
     case Stage::OPTIM:
-        if (! _logger_backend->Write_Message("optimAero pub firmware 07-25-21")) {
+        if (! _logger_backend->Write_Message("optimAero pub firmware 02-01-22")) {
             return; // call me again
         }
         stage = Stage::RC_PROTOCOL;

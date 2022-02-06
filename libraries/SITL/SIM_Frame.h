@@ -127,6 +127,11 @@ private:
         // momentum drag coefficient
         float mdrag_coef = 0.2;
 
+        // motor delay (in seconds)
+        float motor_delay = 0.0036;
+
+        float dfc_angle = 0;
+
     } default_model;
 
     struct Model model;

@@ -172,6 +172,15 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_dfc;
             break;
 
+        case Mode::Number::DFC_ALT:
+            ret = &mode_dfc_alt;
+            break;
+
+        case Mode::Number::DFC_LOIT:
+            ret = &mode_dfc_loit;
+            break;
+
+
         default:
             break;
     }

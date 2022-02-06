@@ -19,6 +19,7 @@
 #pragma once
 
 #include "SIM_Aircraft.h"
+#include "MotorDelay.hpp"
 
 namespace SITL {
 
@@ -43,12 +44,15 @@ public:
     float servo_rate = 0.24; // seconds per 60 degrees
     uint64_t last_change_usec;
     float last_roll_value, last_pitch_value;
+    motor_delay m_delay;
+
 
     Motor(uint8_t _servo, float _angle, float _yaw_factor, uint8_t _display_order) :
         servo(_servo), // what servo output drives this motor
         angle(_angle), // angle in degrees from front
         yaw_factor(_yaw_factor), // positive is clockwise
-        display_order(_display_order) // order for clockwise display
+        display_order(_display_order), // order for clockwise display
+        m_delay(1200,0.05,1000.0)
     {}
 
     /*
@@ -66,7 +70,8 @@ public:
         roll_max(_roll_max),
         pitch_servo(_pitch_servo),
         pitch_min(_pitch_min),
-        pitch_max(_pitch_max)
+        pitch_max(_pitch_max),
+        m_delay(1200,0.05,1000.0)
     {}
 
     void calculate_forces(const struct sitl_input &input,
@@ -89,8 +94,10 @@ public:
 
     // setup motor key parameters
     void setup_params(uint16_t _pwm_min, uint16_t _pwm_max, float _spin_min, float _spin_max, float _expo, float _slew_max,
-                      float _vehicle_mass, float _diagonal_size, float _power_factor, float _voltage_max);
+                      float _vehicle_mass, float _diagonal_size, float _power_factor, float _voltage_max,
+                      float latency);
 
+    void setup_dfc(float dfc_angle);
     // override slew limit
     void set_slew_max(float _slew_max) {
         slew_max = _slew_max;
@@ -116,9 +123,11 @@ private:
     float power_factor;
     float voltage_max;
     Vector3f moment_of_inertia;
+    float dfc_vec[6]={0};
 
     float last_command;
     uint64_t last_calc_us;
+
 };
 
 }

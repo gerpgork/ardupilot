@@ -35,6 +35,7 @@
 #include <AP_Declination/AP_Declination.h>
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include <stdio.h>
 
 using namespace SITL;
 
@@ -564,6 +565,15 @@ void Aircraft::update_model(const struct sitl_input &input)
     }
     local_ground_level = 0.0f;
     update(input);
+    
+    /*
+    uint64_t time_now = AP_HAL::micros64();
+    long long int dt =  time_now - time_hold;
+    time_hold   = time_now;
+    printf("%lld\n",dt);
+    833*10^-6
+    ans =    8.3300e-04 ==   0.000833 == 1200Hz
+    */
 }
 
 /*

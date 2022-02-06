@@ -38,6 +38,8 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         DFC = 28,           // Direct force control
+        DFC_ALT = 29,       // dfc althold
+        DFC_LOIT = 30,      // dfc loiter
     };
 
     // constructor
@@ -1743,6 +1745,60 @@ protected:
 
     const char *name() const override { return "DFC"; }
     const char *name4() const override { return "DFC"; }
+
+private:
+
+};
+
+class ModeDFCAltHold : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::DFC_ALT; }
+
+    virtual void run() override;
+    bool init(bool ignore_checks) override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool allows_save_trim() const override { return true; }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return false; }
+
+protected:
+
+    const char *name() const override { return "DFCALT"; }
+    const char *name4() const override { return "DFCALT"; }
+
+private:
+
+};
+
+class ModeDFCLoiter : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::DFC_LOIT; }
+
+    virtual void run() override;
+    bool init(bool ignore_checks) override;
+
+    bool requires_GPS() const override { return true; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool allows_save_trim() const override { return true; }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return false; }
+
+protected:
+
+    const char *name() const override { return "DFCLOIT"; }
+    const char *name4() const override { return "DFCLOIT"; }
 
 private:
 
