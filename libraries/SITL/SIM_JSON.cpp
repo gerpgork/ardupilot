@@ -18,6 +18,8 @@
 
 #include "SIM_JSON.h"
 
+#if HAL_SIM_JSON_ENABLED
+
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -378,7 +380,7 @@ void JSON::recv_fdm(const struct sitl_input &input)
 // @Field: GX: Simulated gyroscope, X-axis (rad/sec)
 // @Field: GY: Simulated gyroscope, Y-axis (rad/sec)
 // @Field: GZ: Simulated gyroscope, Z-axis (rad/sec)
-    AP::logger().Write("JSN1", "TimeUS,TStamp,R,P,Y,GX,GY,GZ",
+    AP::logger().WriteStreaming("JSN1", "TimeUS,TStamp,R,P,Y,GX,GY,GZ",
                        "ssrrrEEE",
                        "F???????",
                        "Qfffffff",
@@ -405,7 +407,7 @@ void JSON::recv_fdm(const struct sitl_input &input)
 // @Field: AN: simulation's acceleration, North (m/s^2)
 // @Field: AE: simulation's acceleration, East (m/s^2)
 // @Field: AD: simulation's acceleration, Down (m/s^2)
-    AP::logger().Write("JSN2", "TimeUS,VN,VE,VD,AX,AY,AZ,AN,AE,AD",
+    AP::logger().WriteStreaming("JSN2", "TimeUS,VN,VE,VD,AX,AY,AZ,AN,AE,AD",
                        "snnnoooooo",
                        "F?????????",
                        "Qfffffffff",
@@ -448,3 +450,5 @@ void JSON::update(const struct sitl_input &input)
     }
 #endif
 }
+
+#endif  // HAL_SIM_JSON_ENABLED

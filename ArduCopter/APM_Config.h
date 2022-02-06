@@ -15,7 +15,6 @@
 //#define AC_OAPATHPLANNER_ENABLED DISABLED         // disable path planning around obstacles
 //#define PARACHUTE             DISABLED            // disable parachute release to save 1k of flash
 //#define NAV_GUIDED            DISABLED            // disable external navigation computer ability to control vehicle through MAV_CMD_NAV_GUIDED mission commands
-//#define OPTFLOW               DISABLED            // disable optical flow sensor to save 5K of flash space
 //#define FRSKY_TELEM_ENABLED   DISABLED            // disable FRSky telemetry
 //#define PRECISION_LANDING     DISABLED            // disable precision landing using companion computer or IRLock sensor
 //#define BEACON_ENABLED        DISABLED            // disable beacon support
@@ -42,7 +41,6 @@
 //#define MODE_THROW_ENABLED    DISABLED            // disable throw mode support
 //#define MODE_ZIGZAG_ENABLED   DISABLED            // disable zigzag mode support
 //#define OSD_ENABLED           DISABLED            // disable on-screen-display support
-//#define BUTTON_ENABLED        DISABLED            // disable button support
 //#define LANDING_GEAR_ENABLED  DISABLED            // disable landing gear support
 
 // features below are disabled by default on all boards

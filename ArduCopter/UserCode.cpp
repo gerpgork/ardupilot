@@ -50,17 +50,17 @@ void Copter::userhook_SuperSlowLoop()
 #endif
 
 #ifdef USERHOOK_AUXSWITCH
-void Copter::userhook_auxSwitch1(RC_Channel::AuxSwitchPos ch_flag)
+void Copter::userhook_auxSwitch1(const RC_Channel::AuxSwitchPos ch_flag)
 {
     // put your aux switch #1 handler here (CHx_OPT = 47)
 }
 
-void Copter::userhook_auxSwitch2(RC_Channel::AuxSwitchPos ch_flag)
+void Copter::userhook_auxSwitch2(const RC_Channel::AuxSwitchPos ch_flag)
 {
     // put your aux switch #2 handler here (CHx_OPT = 48)
 }
 
-void Copter::userhook_auxSwitch3(RC_Channel::AuxSwitchPos ch_flag)
+void Copter::userhook_auxSwitch3(const RC_Channel::AuxSwitchPos ch_flag)
 {
     // put your aux switch #3 handler here (CHx_OPT = 49)
 }

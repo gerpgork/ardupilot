@@ -12,7 +12,7 @@
 
 #if REMOTE_LOG_DEBUGGING
 #include <stdio.h>
- # define Debug(fmt, args ...)  do {printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## args); hal.scheduler->delay(1); } while(0)
+ # define Debug(fmt, args ...)  do {fprintf(stderr, "%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## args); hal.scheduler->delay(1); } while(0)
 #else
  # define Debug(fmt, args ...)
 #endif
@@ -274,9 +274,9 @@ void AP_Logger_MAVLink::remote_log_block_status_msg(const GCS_MAVLINK &link,
     if (!semaphore.take_nonblocking()) {
         return;
     }
-    if(packet.status == 0){
+    if(packet.status == MAV_REMOTE_LOG_DATA_BLOCK_NACK) {
         handle_retry(packet.seqno);
-    } else{
+    } else {
         handle_ack(link, msg, packet.seqno);
     }
     semaphore.give();
@@ -352,7 +352,7 @@ void AP_Logger_MAVLink::stats_log()
     Write_logger_MAV(*this);
 #if REMOTE_LOG_DEBUGGING
     printf("D:%d Retry:%d Resent:%d SF:%d/%d/%d SP:%d/%d/%d SS:%d/%d/%d SR:%d/%d/%d\n",
-           dropped,
+           _dropped,
            _blocks_retry.sent_count,
            stats.resends,
            stats.state_free_min,
@@ -560,7 +560,7 @@ bool AP_Logger_MAVLink::send_log_block(struct dm_block &block)
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     // deliberately fail 10% of the time in SITL:
-    if (rand() < 0.1) {
+    if ((rand() % 100 + 1) < 10) {
         return false;
     }
 #endif

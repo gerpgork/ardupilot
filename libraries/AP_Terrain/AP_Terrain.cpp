@@ -59,6 +59,14 @@ const AP_Param::GroupInfo AP_Terrain::var_info[] = {
     // @Bitmask: 0:Disable Download
     // @User: Advanced
     AP_GROUPINFO("OPTIONS",   2, AP_Terrain, options, 0),
+
+    // @Param: MARGIN
+    // @DisplayName: Acceptance margin
+    // @Description: Margin in centi-meters to accept terrain data from the GCS. This can be used to allow older terrain data generated with less accurate latitude/longitude scaling to be used
+    // @Units: m
+    // @Range: 0.05 50000
+    // @User: Advanced
+    AP_GROUPINFO("MARGIN",   3, AP_Terrain, margin, 0.05),
     
     AP_GROUPEND
 };
@@ -185,7 +193,7 @@ bool AP_Terrain::height_terrain_difference_home(float &terrain_difference, bool 
     }
 
     Location loc;
-    if (!ahrs.get_position(loc)) {
+    if (!ahrs.get_location(loc)) {
         // we don't know where we are
         return false;
     }
@@ -271,7 +279,7 @@ float AP_Terrain::lookahead(float bearing, float distance, float climb_ratio)
     }
 
     Location loc;
-    if (!AP::ahrs().get_position(loc)) {
+    if (!AP::ahrs().get_location(loc)) {
         // we don't know where we are
         return 0;
     }
@@ -321,7 +329,7 @@ void AP_Terrain::update(void)
 
     // update the cached current location height
     Location loc;
-    bool pos_valid = ahrs.get_position(loc);
+    bool pos_valid = ahrs.get_location(loc);
     bool terrain_valid = pos_valid && height_amsl(loc, height, false);
     if (pos_valid && terrain_valid) {
         last_current_loc_height = height;
@@ -357,7 +365,7 @@ void AP_Terrain::log_terrain_data()
         return;
     }
     Location loc;
-    if (!AP::ahrs().get_position(loc)) {
+    if (!AP::ahrs().get_location(loc)) {
         // we don't know where we are
         return;
     }

@@ -87,12 +87,12 @@ void ModeDFCAltHold::run()
 		#endif
 
         // adjust climb rate using rangefinder
-        target_climb_rate = copter.surface_tracking.adjust_climb_rate(target_climb_rate);
+        //target_climb_rate = copter.surface_tracking.adjust_climb_rate(target_climb_rate);
 
         // get avoidance adjusted climb rate
-        target_climb_rate = get_avoidance_adjusted_climbrate(target_climb_rate);
+        ///target_climb_rate = get_avoidance_adjusted_climbrate(0.); //target_climb_rate
 
-        pos_control->set_pos_target_z_from_climb_rate_cm(target_climb_rate, false);
+        //pos_control->set_pos_target_z_from_climb_rate_cm(target_climb_rate, false);
         break;
     }
 

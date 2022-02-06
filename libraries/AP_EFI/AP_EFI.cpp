@@ -18,6 +18,7 @@
 #if HAL_EFI_ENABLED
 
 #include "AP_EFI_Serial_MS.h"
+#include "AP_EFI_Serial_Lutan.h"
 #include "AP_EFI_NWPMU.h"
 #include <AP_Logger/AP_Logger.h>
 
@@ -32,7 +33,7 @@ const AP_Param::GroupInfo AP_EFI::var_info[] = {
     // @Param: _TYPE
     // @DisplayName: EFI communication type
     // @Description: What method of communication is used for EFI #1
-    // @Values: 0:None,1:Serial-MS,2:NWPMU
+    // @Values: 0:None,1:Serial-MS,2:NWPMU,3:Serial-Lutan
     // @User: Advanced
     // @RebootRequired: True
     AP_GROUPINFO_FLAGS("_TYPE", 1, AP_EFI, type, 0, AP_PARAM_FLAG_ENABLE),
@@ -42,7 +43,6 @@ const AP_Param::GroupInfo AP_EFI::var_info[] = {
     // @Description: Used to calibrate fuel flow for MS protocol (Slope)
     // @Range: 0 1
     // @User: Advanced
-    // @RebootRequired: False
     AP_GROUPINFO("_COEF1", 2, AP_EFI, coef1, 0),
 
     // @Param: _COEF2
@@ -50,7 +50,6 @@ const AP_Param::GroupInfo AP_EFI::var_info[] = {
     // @Description: Used to calibrate fuel flow for MS protocol (Offset)
     // @Range: 0 10
     // @User: Advanced
-    // @RebootRequired: False
     AP_GROUPINFO("_COEF2", 3, AP_EFI, coef2, 0),
 
     AP_GROUPEND
@@ -77,6 +76,9 @@ void AP_EFI::init(void)
         break;
     case Type::MegaSquirt:
         backend = new AP_EFI_Serial_MS(*this);
+        break;
+    case Type::Lutan:
+        backend = new AP_EFI_Serial_Lutan(*this);
         break;
     case Type::NWPMU:
 #if HAL_EFI_NWPWU_ENABLED
@@ -125,7 +127,7 @@ void AP_EFI::log_status(void)
 // @Field: CFV: Consumed fueld volume
 // @Field: TPS: Throttle Position
 // @Field: IDX: Index of the publishing ECU
-    AP::logger().Write("EFI",
+    AP::logger().WriteStreaming("EFI",
                        "TimeUS,LP,Rpm,SDT,ATM,IMP,IMT,ECT,OilP,OilT,FP,FCR,CFV,TPS,IDX",
                        "s%qsPPOOPOP--%-",
                        "F00C--00-0-0000",
@@ -161,7 +163,7 @@ void AP_EFI::log_status(void)
 // @Field: DebS: Debris status
 // @Field: SPU: Spark plug usage
 // @Field: IDX: Index of the publishing ECU
-    AP::logger().Write("EFI2",
+    AP::logger().WriteStreaming("EFI2",
                        "TimeUS,Healthy,ES,GE,CSE,TS,FPS,OPS,DS,MS,DebS,SPU,IDX",
                        "s------------",
                        "F------------",
@@ -191,7 +193,7 @@ void AP_EFI::log_status(void)
 // @Field: EGT: Exhaust gas temperature
 // @Field: Lambda: Estimated lambda coefficient (dimensionless ratio)
 // @Field: IDX: Index of the publishing ECU
-        AP::logger().Write("ECYL",
+        AP::logger().WriteStreaming("ECYL",
                            "TimeUS,Inst,IgnT,InjT,CHT,EGT,Lambda,IDX",
                            "s#dsOO--",
                            "F-0C0000",
@@ -227,8 +229,8 @@ void AP_EFI::send_mavlink_status(mavlink_channel_t chan)
         state.spark_dwell_time_ms,
         state.atmospheric_pressure_kpa,
         state.intake_manifold_pressure_kpa,
-        (state.intake_manifold_temperature - C_TO_KELVIN),
-        (state.cylinder_status[0].cylinder_head_temperature - C_TO_KELVIN),
+        KELVIN_TO_C(state.intake_manifold_temperature),
+        KELVIN_TO_C(state.cylinder_status[0].cylinder_head_temperature),
         state.cylinder_status[0].ignition_timing_deg,
         state.cylinder_status[0].injection_time_ms,
         0, 0, 0);

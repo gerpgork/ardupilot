@@ -26,6 +26,8 @@ import generate_manifest
 import gen_stable
 import build_binaries_history
 
+from board_list import AUTOBUILD_BOARDS, AP_PERIPH_BOARDS
+
 if sys.version_info[0] < 3:
     running_python3 = False
 else:
@@ -86,7 +88,7 @@ class build_binaries(object):
 
     def board_options(self, board):
         '''return board-specific options'''
-        if board == "bebop":
+        if board in ["bebop", "disco"]:
             return ["--static"]
         return []
 
@@ -459,6 +461,9 @@ is bob we will attempt to checkout bob-AVR'''
                 except subprocess.CalledProcessError:
                     self.progress("waf configure failed")
                     continue
+
+                time_taken_to_configure = time.time() - t0
+
                 try:
                     target = os.path.join("bin",
                                           "".join([binaryname, framesuffix]))
@@ -474,10 +479,11 @@ is bob we will attempt to checkout bob-AVR'''
                     self.history.record_build(githash, tag, vehicle, board, frame, None, t0, time_taken_to_build)
                     continue
 
-                t1 = time.time()
-                time_taken_to_build = t1-t0
-                self.progress("Building %s %s %s %s took %u seconds" %
-                              (vehicle, tag, board, frame, time_taken_to_build))
+                time_taken_to_build = (time.time()-t0) - time_taken_to_configure
+
+                time_taken = time.time()-t0
+                self.progress("Making %s %s %s %s took %u seconds (configure=%u build=%u)" %
+                              (vehicle, tag, board, frame, time_taken, time_taken_to_configure, time_taken_to_build))
 
                 bare_path = os.path.join(self.buildroot,
                                          board,
@@ -514,120 +520,10 @@ is bob we will attempt to checkout bob-AVR'''
 
     def common_boards(self):
         '''returns list of boards common to all vehicles'''
-        return ["fmuv2",
-                "fmuv3",
-                "fmuv5",
-                "mindpx-v2",
-                "erlebrain2",
-                "navigator",
-                "navio",
-                "navio2",
-                "edge",
-                "pxf",
-                "pxfmini",
-                "KakuteF4",
-                "KakuteF7",
-                "KakuteF7Mini",
-                "KakuteF4Mini",
-                "MambaF405v2",
-                "MatekF405",
-                "MatekF405-bdshot",
-                "MatekF405-STD",
-                "MatekF405-Wing",
-                "MatekF765-Wing",
-                "MatekF765-SE",
-                "MatekF405-CAN",
-                "MatekH743",
-                "MatekH743-bdshot",
-                "OMNIBUSF7V2",
-                "sparky2",
-                "omnibusf4",
-                "omnibusf4pro",
-                "omnibusf4pro-bdshot",
-                "omnibusf4v6",
-                "OmnibusNanoV6",
-                "OmnibusNanoV6-bdshot",
-                "mini-pix",
-                "airbotf4",
-                "revo-mini",
-                "revo-mini-bdshot",
-                "revo-mini-i2c",
-                "revo-mini-i2c-bdshot",
-                "CubeBlack",
-                "CubeBlack+",
-                "CubePurple",
-                "Pixhawk1",
-                "Pixhawk1-1M",
-                "Pixhawk4",
-                "Pix32v5",
-                "PH4-mini",
-                "CUAVv5",
-                "CUAVv5Nano",
-                "CUAV-Nora",
-                "CUAV-X7",
-                "CUAV-X7-bdshot",
-                "mRoX21",
-                "Pixracer",
-                "Pixracer-bdshot",
-                "F4BY",
-                "mRoX21-777",
-                "mRoControlZeroF7",
-                "mRoNexus",
-                "mRoPixracerPro",
-                "mRoPixracerPro-bdshot",
-                "mRoControlZeroOEMH7",
-                "mRoControlZeroClassic",
-                "mRoControlZeroH7",
-                "mRoControlZeroH7-bdshot",
-                "F35Lightning",
-                "speedybeef4",
-                "SuccexF4",
-                "DrotekP3Pro",
-                "VRBrain-v51",
-                "VRBrain-v52",
-                "VRUBrain-v51",
-                "VRCore-v10",
-                "VRBrain-v54",
-                "TBS-Colibri-F7",
-                "Durandal",
-                "Durandal-bdshot",
-                "CubeOrange",
-                "CubeOrange-bdshot",
-                "CubeYellow",
-                "R9Pilot",
-                "QioTekZealotF427",
-                "BeastH7",
-                "BeastF7",
-                "FlywooF745",
-                "luminousbee5",
-                "MambaF405US-I2C",
-                # SITL targets
-                "SITL_x86_64_linux_gnu",
-                "SITL_arm_linux_gnueabihf",
-                ]
+        return AUTOBUILD_BOARDS
 
     def AP_Periph_boards(self):
-        '''returns list of boards for AP_Periph'''
-        return ["f103-GPS",
-                "f103-QiotekPeriph",
-                "f103-ADSB",
-                "f103-RangeFinder",
-                "f303-GPS",
-                "f303-Universal",
-                "f303-M10025",
-                "f303-M10070",
-                "f303-MatekGPS",
-                "f405-MatekGPS",
-                "f103-Airspeed",
-                "CUAV_GPS",
-                "ZubaxGNSS",
-                "CubeOrange-periph",
-                "CubeBlack-periph",
-                "MatekH743-periph",
-                "HitecMosaic",
-                "FreeflyRTK",
-                "HolybroGPS",
-                ]
+        return AP_PERIPH_BOARDS
 
     def build_arducopter(self, tag):
         '''build Copter binaries'''
@@ -685,6 +581,15 @@ is bob we will attempt to checkout bob-AVR'''
                            boards,
                            "AP_Periph",
                            "AP_Periph")
+
+    def build_blimp(self, tag):
+        '''build Blimp binaries'''
+        boards = self.common_boards()
+        self.build_vehicle(tag,
+                           "Blimp",
+                           boards,
+                           "Blimp",
+                           "blimp")
 
     def generate_manifest(self):
         '''generate manigest files for GCS to download'''
@@ -796,6 +701,7 @@ is bob we will attempt to checkout bob-AVR'''
             self.build_antennatracker(tag)
             self.build_ardusub(tag)
             self.build_AP_Periph(tag)
+            self.build_blimp(tag)
             self.history.record_run(githash, tag, t0, time.time()-t0)
 
         if os.path.exists(self.tmpdir):

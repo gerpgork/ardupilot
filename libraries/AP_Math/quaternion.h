@@ -63,11 +63,11 @@ public:
         return isnan(q1) || isnan(q2) || isnan(q3) || isnan(q4);
     }
 
-    // return the rotation matrix equivalent for this quaternion
+    // populate the supplied rotation matrix equivalent from this quaternion
     void        rotation_matrix(Matrix3f &m) const;
     void        rotation_matrix(Matrix3d &m) const;
 
-    // return the rotation matrix equivalent for this quaternion
+    // make this quaternion equivalent to the supplied matrix
     void		from_rotation_matrix(const Matrix3<T> &m);
 
     // create a quaternion from a given rotation
@@ -130,8 +130,21 @@ public:
     // create eulers from a quaternion
     Vector3<T>    to_vector312(void) const;
 
+    T length_squared(void) const;
     T length(void) const;
     void normalize();
+
+    // Checks if each element of the quaternion is zero
+    bool is_zero(void) const;
+
+    // zeros the quaternion to [0, 0, 0, 0], an invalid quaternion
+    // See initialize() if you want the zero rotation quaternion
+    void zero(void);
+
+    // Checks if the quaternion is unit_length within a tolerance
+    // Returns True: if its magnitude is close to unit length +/- 1E-3
+    // This limit is somewhat greater than sqrt(FLT_EPSL)
+    bool is_unit_length(void) const;
 
     // initialise the quaternion to no rotation
     void initialise()

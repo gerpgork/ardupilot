@@ -22,6 +22,28 @@
 
 #define AP_MOTORS_MAX_NUM_MOTORS 12
 
+#ifndef AP_MOTORS_FRAME_QUAD_ENABLED
+#define AP_MOTORS_FRAME_QUAD_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_HEXA_ENABLED
+#define AP_MOTORS_FRAME_HEXA_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_OCTA_ENABLED
+#define AP_MOTORS_FRAME_OCTA_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_DECA_ENABLED
+#define AP_MOTORS_FRAME_DECA_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_DODECAHEXA_ENABLED
+#define AP_MOTORS_FRAME_DODECAHEXA_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_Y6_ENABLED
+#define AP_MOTORS_FRAME_Y6_ENABLED 1
+#endif
+#ifndef AP_MOTORS_FRAME_OCTAQUAD_ENABLED
+#define AP_MOTORS_FRAME_OCTAQUAD_ENABLED 1
+#endif
+
 // motor update rate
 #define AP_MOTORS_SPEED_DEFAULT     490 // default output rate to the motors
 
@@ -51,7 +73,7 @@ public:
     };
 
     // return string corresponding to frame_class
-    virtual const char* get_frame_string() const = 0;
+    const char* get_frame_string() const;
 
     enum motor_frame_type {
         MOTOR_FRAME_TYPE_PLUS = 0,
@@ -72,10 +94,9 @@ public:
         MOTOR_FRAME_TYPE_BF_X_REV = 18, // X frame, betaflight ordering, reversed motors
         MOTOR_FRAME_TYPE_DFC_15 = 19, // for direct force control  = 15 deg motor tilt
         MOTOR_FRAME_TYPE_DFC_30 = 20, // for direct force control  = 30 deg motor tilt            
+        MOTOR_FRAME_TYPE_Y4 = 21, //Y4 Quadrotor frame
     };
 
-    // return string corresponding to frame_type
-    virtual const char* get_type_string() const { return ""; }
 
     // returns a formatted string into buffer, e.g. "QUAD/X"
     void get_frame_and_type_string(char *buffer, uint8_t buflen) const;
@@ -211,27 +232,40 @@ public:
     // using copter motors for forward flight
     virtual float       get_roll_factor(uint8_t i) { return 0.0f; }
 
+    // return the pitch factor of any motor
+    virtual float       get_pitch_factor(uint8_t i) { return 0.0f; }
+
+    // return whether a motor is enabled or not
+    virtual bool        is_motor_enabled(uint8_t i) { return false; }
+
     // This function required for tradheli. Tradheli initializes targets when going from unarmed to armed state.
     // This function is overriden in motors_heli class.   Always true for multicopters.
     virtual bool init_targets_on_arming() const { return true; }
 
-    enum pwm_type { PWM_TYPE_NORMAL     = 0,
-                    PWM_TYPE_ONESHOT    = 1,
-                    PWM_TYPE_ONESHOT125 = 2,
-                    PWM_TYPE_BRUSHED    = 3,
-                    PWM_TYPE_DSHOT150   = 4,
-                    PWM_TYPE_DSHOT300   = 5,
-                    PWM_TYPE_DSHOT600   = 6,
-                    PWM_TYPE_DSHOT1200  = 7,
-                    PWM_TYPE_PWM_RANGE  = 8 };
-    pwm_type            get_pwm_type(void) const { return (pwm_type)_pwm_type.get(); }
+    // returns true if the configured PWM type is digital and should have fixed endpoints
+    bool is_digital_pwm_type() const;
+
+    // returns true is pwm type is brushed
+    bool is_brushed_pwm_type() const { return _pwm_type == PWM_TYPE_BRUSHED; }
+
+    // returns true is pwm type is normal
+    bool is_normal_pwm_type() const { return (_pwm_type == PWM_TYPE_NORMAL) || (_pwm_type == PWM_TYPE_PWM_RANGE); }
 
     MAV_TYPE get_frame_mav_type() const { return _mav_type; }
+
+    // direct motor write
+    virtual void        rc_write(uint8_t chan, uint16_t pwm);
+
+#if AP_SCRIPTING_ENABLED
+    void set_frame_string(const char * str);
+#endif
+
+    // write log, to be called at 10hz
+    virtual void Log_Write() {};
 
 protected:
     // output functions that should be overloaded by child classes
     virtual void        output_armed_stabilizing() = 0;
-    virtual void        rc_write(uint8_t chan, uint16_t pwm);
     virtual void        rc_write_angle(uint8_t chan, int16_t angle_cd);
     virtual void        rc_set_freq(uint32_t mask, uint16_t freq_hz);
 
@@ -296,6 +330,26 @@ protected:
 
     AP_Int8             _motor_fail_number;            // controls which motor will be slowed down/stopped during failure test
     AP_Int8             _motor_fail_percent;        // controls how much motor is slowed down during test percetnage(0-100)
+    enum pwm_type { PWM_TYPE_NORMAL     = 0,
+                    PWM_TYPE_ONESHOT    = 1,
+                    PWM_TYPE_ONESHOT125 = 2,
+                    PWM_TYPE_BRUSHED    = 3,
+                    PWM_TYPE_DSHOT150   = 4,
+                    PWM_TYPE_DSHOT300   = 5,
+                    PWM_TYPE_DSHOT600   = 6,
+                    PWM_TYPE_DSHOT1200  = 7,
+                    PWM_TYPE_PWM_RANGE  = 8 };
+
+    // return string corresponding to frame_class
+    virtual const char* _get_frame_string() const = 0;
+
+    // return string corresponding to frame_type
+    virtual const char* get_type_string() const { return ""; }
+
+#if AP_SCRIPTING_ENABLED
+    // Custom frame string set from scripting
+    char* custom_frame_string;
+#endif
 
 private:
 

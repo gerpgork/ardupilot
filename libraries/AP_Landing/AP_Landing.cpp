@@ -138,19 +138,6 @@ const AP_Param::GroupInfo AP_Landing::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("FLAP_PERCNT", 13, AP_Landing, flap_percent, 0),
 
-    // @Param: TYPE
-    // @DisplayName: Auto-landing type
-    // @Description: Specifies the auto-landing type to use
-    // @Values: 0:Standard Glide Slope, 1:Deepstall
-    // @User: Standard
-    AP_GROUPINFO("TYPE",    14, AP_Landing, type, TYPE_STANDARD_GLIDE_SLOPE),
-
-#if HAL_LANDING_DEEPSTALL_ENABLED
-    // @Group: DS_
-    // @Path: AP_Landing_Deepstall.cpp
-    AP_SUBGROUPINFO(deepstall, "DS_", 15, AP_Landing, AP_Landing_Deepstall),
-#endif
-
     // @Param: OPTIONS
     // @DisplayName: Landing options bitmask
     // @Description: Bitmask of options to use with landing.
@@ -158,11 +145,26 @@ const AP_Param::GroupInfo AP_Landing::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("OPTIONS", 16, AP_Landing, _options, 0),
 
+    // @Param: TYPE
+    // @DisplayName: Auto-landing type
+    // @Description: Specifies the auto-landing type to use
+    // @Values: 0:Standard Glide Slope, 1:Deepstall
+    // @User: Standard
+    AP_GROUPINFO_FLAGS("TYPE",    14, AP_Landing, type, TYPE_STANDARD_GLIDE_SLOPE, AP_PARAM_FLAG_ENABLE),
+
+#if HAL_LANDING_DEEPSTALL_ENABLED
+    // @Group: DS_
+    // @Path: AP_Landing_Deepstall.cpp
+    AP_SUBGROUPINFO(deepstall, "DS_", 15, AP_Landing, AP_Landing_Deepstall),
+#endif
+
+    // additional global params should be placed in the list above TYPE to avoid the enable flag hiding the deepstall params
+
     AP_GROUPEND
 };
 
     // constructor
-AP_Landing::AP_Landing(AP_Mission &_mission, AP_AHRS &_ahrs, AP_SpdHgtControl *_SpdHgt_Controller, AP_Navigation *_nav_controller, AP_Vehicle::FixedWing &_aparm,
+AP_Landing::AP_Landing(AP_Mission &_mission, AP_AHRS &_ahrs, AP_TECS *_tecs_Controller, AP_Navigation *_nav_controller, AP_Vehicle::FixedWing &_aparm,
                        set_target_altitude_proportion_fn_t _set_target_altitude_proportion_fn,
                        constrain_target_altitude_location_fn_t _constrain_target_altitude_location_fn,
                        adjusted_altitude_cm_fn_t _adjusted_altitude_cm_fn,
@@ -171,7 +173,7 @@ AP_Landing::AP_Landing(AP_Mission &_mission, AP_AHRS &_ahrs, AP_SpdHgtControl *_
                        update_flight_stage_fn_t _update_flight_stage_fn) :
     mission(_mission)
     ,ahrs(_ahrs)
-    ,SpdHgt_Controller(_SpdHgt_Controller)
+    ,tecs_Controller(_tecs_Controller)
     ,nav_controller(_nav_controller)
     ,aparm(_aparm)
     ,set_target_altitude_proportion_fn(_set_target_altitude_proportion_fn)
@@ -575,7 +577,7 @@ int32_t AP_Landing::get_target_airspeed_cm(void)
         // don't return the landing airspeed, because if type is invalid we have
         // no postive indication that the land airspeed has been configured or
         // how it was meant to be utilized
-        return SpdHgt_Controller->get_target_airspeed();
+        return tecs_Controller->get_target_airspeed();
     }
 }
 

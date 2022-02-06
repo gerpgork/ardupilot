@@ -125,7 +125,7 @@ public:
         SerialProtocol_Rangefinder = 9,
         SerialProtocol_FrSky_SPort_Passthrough = 10, // FrSky SPort Passthrough (OpenTX) protocol (X-receivers)
         SerialProtocol_Lidar360 = 11,                // Lightware SF40C, TeraRanger Tower or RPLidarA2
-        SerialProtocol_Aerotenna_uLanding      = 12, // Ulanding support - deprecated, users should use Rangefinder
+        SerialProtocol_Aerotenna_USD1      = 12, // USD1 support - deprecated, users should use Rangefinder
         SerialProtocol_Beacon = 13,
         SerialProtocol_Volz = 14,                    // Volz servo protocol
         SerialProtocol_Sbus1 = 15,
@@ -137,7 +137,7 @@ public:
         SerialProtocol_WindVane = 21,
         SerialProtocol_SLCAN = 22,
         SerialProtocol_RCIN = 23,
-        SerialProtocol_EFI_MS = 24,                   // MegaSquirt EFI serial protocol
+        SerialProtocol_EFI = 24,                   // EFI serial protocol
         SerialProtocol_LTM_Telem = 25,
         SerialProtocol_RunCam = 26,
         SerialProtocol_Hott = 27,
@@ -151,8 +151,12 @@ public:
         SerialProtocol_ADSB = 35,
         SerialProtocol_AHRS = 36,
         SerialProtocol_SmartAudio = 37,
+        SerialProtocol_FETtecOneWire = 38,
         SerialProtocol_Torqeedo = 39,
-        SerialProtocol_optimAero = 40,
+        SerialProtocol_AIS = 40,
+        SerialProtocol_CoDevESC = 41,
+        SerialProtocol_MSP_DisplayPort = 42,
+        SerialProtocol_optimAero = 43,
         SerialProtocol_NumProtocols                    // must be the last value
     };
 
@@ -160,7 +164,7 @@ public:
     static AP_SerialManager *get_singleton(void) {
         return _singleton;
     }
-    
+
     // init_console - initialise console at default baud rate
     void init_console();
 
@@ -170,8 +174,12 @@ public:
     // find_serial - searches available serial ports that allows the given protocol
     //  instance should be zero if searching for the first instance, 1 for the second, etc
     //  returns uart on success, nullptr if a serial port cannot be found
+    // note that the SERIALn_OPTIONS are applied if the port is found
     AP_HAL::UARTDriver *find_serial(enum SerialProtocol protocol, uint8_t instance) const;
 
+    // have_serial - return true if we have the corresponding serial protocol configured
+    bool have_serial(enum SerialProtocol protocol, uint8_t instance) const;
+    
     // find_baudrate - searches available serial ports for the first instance that allows the given protocol
     //  instance should be zero if searching for the first instance, 1 for the second, etc
     //  returns the baudrate of that protocol on success, 0 if a serial port cannot be found
@@ -179,7 +187,7 @@ public:
 
     // find_portnum - find port number (SERIALn index) for a protocol and instance, -1 for not found
     int8_t find_portnum(enum SerialProtocol protocol, uint8_t instance) const;
-    
+
     // get_mavlink_channel - provides the mavlink channel associated with a given protocol (and instance)
     //  instance should be zero if searching for the first instance, 1 for the second, etc
     //  returns true if a channel is found, false if not
@@ -191,7 +199,7 @@ public:
     // get_mavlink_protocol - provides the specific MAVLink protocol for a
     // given channel, or SerialProtocol_None if not found
     SerialProtocol get_mavlink_protocol(mavlink_channel_t mav_chan) const;
-    
+
     // set_blocking_writes_all - sets block_writes on or off for all serial channels
     void set_blocking_writes_all(bool blocking);
 
@@ -215,7 +223,7 @@ public:
 
 private:
     static AP_SerialManager *_singleton;
-    
+
     // array of uart info
     struct UARTState {
         AP_Int8 protocol;

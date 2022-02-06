@@ -48,6 +48,9 @@ public:
         k_param_can_protocol2,
         k_param_sysid_this_mav,
         k_param_serial_manager,
+        k_param_gps_mb_only_can_port,
+        k_param_scripting,
+        k_param_esc_telem_port,
     };
 
     AP_Int16 format_version;
@@ -92,6 +95,9 @@ public:
 
 #ifdef HAL_PERIPH_ENABLE_GPS
     AP_Int8 gps_port;
+#if HAL_NUM_CAN_IFACES >= 2
+    AP_Int8 gps_mb_only_can_port;
+#endif
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_MSP
@@ -100,6 +106,9 @@ public:
 
 #ifdef HAL_PERIPH_ENABLE_RC_OUT
     AP_Int8 esc_pwm_type;
+#if HAL_WITH_ESC_TELEM && !HAL_GCS_ENABLED
+    AP_Int8 esc_telem_port;
+#endif
 #endif
 
     AP_Int8 debug;
@@ -110,7 +119,7 @@ public:
     AP_Int32        log_bitmask;
 #endif
 
-#ifndef HAL_NO_GCS
+#if HAL_GCS_ENABLED
     AP_Int16 sysid_this_mav;
 #endif
 

@@ -10,8 +10,8 @@ extern const AP_HAL::HAL &hal;
 #define HAL_PERIPH_RANGEFINDER_BAUDRATE_DEFAULT 115200
 #endif
 
-#ifndef HAL_PERIPH_RANGEFINDER_PORT_DEFAULT
-#define HAL_PERIPH_RANGEFINDER_PORT_DEFAULT 3
+#ifndef AP_PERIPH_RANGEFINDER_PORT_DEFAULT
+#define AP_PERIPH_RANGEFINDER_PORT_DEFAULT 3
 #endif
 
 #ifndef HAL_PERIPH_GPS_PORT_DEFAULT
@@ -27,6 +27,10 @@ extern const AP_HAL::HAL &hal;
 
 #ifndef AP_PERIPH_MSP_PORT_DEFAULT
 #define AP_PERIPH_MSP_PORT_DEFAULT 1
+#endif
+
+#ifndef AP_PERIPH_ESC_TELEM_PORT_DEFAULT
+#define AP_PERIPH_ESC_TELEM_PORT_DEFAULT -1
 #endif
 
 #ifndef HAL_DEFAULT_MAV_SYSTEM_ID
@@ -74,7 +78,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,     0, "CAN_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
@@ -90,7 +94,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN2_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,     1, "CAN2_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
@@ -108,7 +112,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: CAN3_PROTOCOL
     // @DisplayName: Enable use of specific protocol to be used on this port
     // @Description: Enabling this option starts selected protocol that will use this virtual driver. At least one CAN port must be UAVCAN or else CAN1 gets set to UAVCAN
-    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN,9:PacketDigital
+    // @Values: 0:Disabled,1:UAVCAN,3:ToshibaCAN,4:PiccoloCAN,5:CANTester,6:EFI_NWPMU,7:USD1,8:KDECAN
     // @User: Advanced
     // @RebootRequired: True
     GARRAY(can_protocol,    2, "CAN3_PROTOCOL", AP_CANManager::Driver_Type_UAVCAN),
@@ -162,6 +166,16 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @User: Advanced
     // @RebootRequired: True
     GSCALAR(gps_port, "GPS_PORT", HAL_PERIPH_GPS_PORT_DEFAULT),
+
+#if HAL_NUM_CAN_IFACES >= 2
+    // @Param: MB_CAN_PORT
+    // @DisplayName: Moving Baseline CAN Port option
+    // @Description: Autoselect dedicated CAN port on which moving baseline data will be transmitted.
+    // @Values: 0:Sends moving baseline data on all ports,1:auto select remaining port for transmitting Moving baseline Data
+    // @User: Advanced
+    // @RebootRequired: True
+    GSCALAR(gps_mb_only_can_port, "GPS_MB_ONLY_PORT", 0),
+#endif
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_BATTERY
@@ -225,7 +239,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Increment: 1
     // @User: Advanced
     // @RebootRequired: True
-    GSCALAR(rangefinder_port, "RNGFND_PORT", HAL_PERIPH_RANGEFINDER_PORT_DEFAULT),
+    GSCALAR(rangefinder_port, "RNGFND_PORT", AP_PERIPH_RANGEFINDER_PORT_DEFAULT),
 
     // Rangefinder driver
     // @Group: RNGFND
@@ -288,10 +302,21 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Param: ESC_PWM_TYPE
     // @DisplayName: Output PWM type
     // @Description: This selects the output PWM type, allowing for normal PWM continuous output, OneShot, brushed or DShot motor output
-    // @Values: 0:Normal,1:OneShot,2:OneShot125,3:Brushed,4:DShot150,5:DShot300,6:DShot600,7:DShot1200
+    // @Values: 1:Normal,2:OneShot,3:OneShot125,4:Brushed,5:DShot150,6:DShot300,7:DShot600,8:DShot1200
     // @User: Advanced
     // @RebootRequired: True
     GSCALAR(esc_pwm_type, "ESC_PWM_TYPE",     0),
+
+#if HAL_WITH_ESC_TELEM && !HAL_GCS_ENABLED
+    // @Param: ESC_TELEM_PORT
+    // @DisplayName: ESC Telemetry Serial Port
+    // @Description: This is the serial port number where SERIALx_PROTOCOL will be set to ESC Telemetry
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    GSCALAR(esc_telem_port, "ESC_TELEM_PORT", AP_PERIPH_ESC_TELEM_PORT_DEFAULT),
+#endif
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_MSP
@@ -324,7 +349,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GSCALAR(log_bitmask,    "LOG_BITMASK",          4),
 #endif
 
-#ifndef HAL_NO_GCS
+#if HAL_GCS_ENABLED
     // @Param: SYSID_THISMAV
     // @DisplayName: MAVLink system ID of this vehicle
     // @Description: Allows setting an individual system id for this vehicle to distinguish it from others on the same network
@@ -337,6 +362,11 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
 #endif
 
+#if AP_SCRIPTING_ENABLED
+    // @Group: SCR_
+    // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
+    GOBJECT(scripting, "SCR_", AP_Scripting),
+#endif
     AP_VAREND
 };
 

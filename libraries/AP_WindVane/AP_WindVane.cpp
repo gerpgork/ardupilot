@@ -46,7 +46,7 @@ const AP_Param::GroupInfo AP_WindVane::var_info[] = {
 
     // @Param: DIR_V_MIN
     // @DisplayName: Wind vane voltage minimum
-    // @Description: Minimum voltage supplied by analog wind vane
+    // @Description: Minimum voltage supplied by analog wind vane. When using pin 103, the maximum value of the parameter is 3.3V.
     // @Units: V
     // @Increment: 0.01
     // @Range: 0 5.0
@@ -55,7 +55,7 @@ const AP_Param::GroupInfo AP_WindVane::var_info[] = {
 
     // @Param: DIR_V_MAX
     // @DisplayName: Wind vane voltage maximum
-    // @Description: Maximum voltage supplied by analog wind vane
+    // @Description: Maximum voltage supplied by analog wind vane. When using pin 103, the maximum value of the parameter is 3.3V.
     // @Units: V
     // @Increment: 0.01
     // @Range: 0 5.0
@@ -357,7 +357,7 @@ void AP_WindVane::update()
 // @Field: SpdRaw: raw wind speed direct from sensor
 // @Field: SpdApp: Apparent wind Speed
 // @Field: SpdTru: True wind speed
-    AP::logger().Write("WIND", "TimeUS,DrRaw,DrApp,DrTru,SpdRaw,SpdApp,SpdTru",
+    AP::logger().WriteStreaming("WIND", "TimeUS,DrRaw,DrApp,DrTru,SpdRaw,SpdApp,SpdTru",
                         "sddhnnn", "F000000", "Qffffff",
                         AP_HAL::micros64(),
                         degrees(_direction_apparent_raw),

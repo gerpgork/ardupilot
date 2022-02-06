@@ -23,29 +23,30 @@
 
 extern const AP_HAL::HAL& hal;
 
-// init sets up INS board orientation
 void AP_AHRS_Backend::init()
 {
 }
 
 // return a smoothed and corrected gyro vector using the latest ins data (which may not have been consumed by the EKF yet)
-Vector3f AP_AHRS_Backend::get_gyro_latest(void) const
+Vector3f AP_AHRS::get_gyro_latest(void) const
 {
     const uint8_t primary_gyro = get_primary_gyro_index();
     return AP::ins().get_gyro(primary_gyro) + get_gyro_drift();
 }
 
 // set_trim
-void AP_AHRS_Backend::set_trim(const Vector3f &new_trim)
+void AP_AHRS::set_trim(const Vector3f &new_trim)
 {
-    Vector3f trim;
-    trim.x = constrain_float(new_trim.x, ToRad(-AP_AHRS_TRIM_LIMIT), ToRad(AP_AHRS_TRIM_LIMIT));
-    trim.y = constrain_float(new_trim.y, ToRad(-AP_AHRS_TRIM_LIMIT), ToRad(AP_AHRS_TRIM_LIMIT));
+    const Vector3f trim {
+        constrain_float(new_trim.x, ToRad(-AP_AHRS_TRIM_LIMIT), ToRad(AP_AHRS_TRIM_LIMIT)),
+        constrain_float(new_trim.y, ToRad(-AP_AHRS_TRIM_LIMIT), ToRad(AP_AHRS_TRIM_LIMIT)),
+        constrain_float(new_trim.z, ToRad(-AP_AHRS_TRIM_LIMIT), ToRad(AP_AHRS_TRIM_LIMIT))
+    };
     _trim.set_and_save(trim);
 }
 
 // add_trim - adjust the roll and pitch trim up to a total of 10 degrees
-void AP_AHRS_Backend::add_trim(float roll_in_radians, float pitch_in_radians, bool save_to_eeprom)
+void AP_AHRS::add_trim(float roll_in_radians, float pitch_in_radians, bool save_to_eeprom)
 {
     Vector3f trim = _trim.get();
 
@@ -77,7 +78,7 @@ void AP_AHRS::update_orientation()
 }
 
 // return a ground speed estimate in m/s
-Vector2f AP_AHRS_Backend::groundspeed_vector(void)
+Vector2f AP_AHRS_DCM::groundspeed_vector(void)
 {
     // Generate estimate of ground speed vector using air data system
     Vector2f gndVelADS;
@@ -88,7 +89,7 @@ Vector2f AP_AHRS_Backend::groundspeed_vector(void)
     if (gotAirspeed) {
         const Vector3f wind = wind_estimate();
         const Vector2f wind2d(wind.x, wind.y);
-        const Vector2f airspeed_vector(_cos_yaw * airspeed, _sin_yaw * airspeed);
+        const Vector2f airspeed_vector{_cos_yaw * airspeed, _sin_yaw * airspeed};
         gndVelADS = airspeed_vector + wind2d;
     }
 
@@ -131,7 +132,7 @@ Vector2f AP_AHRS_Backend::groundspeed_vector(void)
         // we have a rough airspeed, and we have a yaw. For
         // dead-reckoning purposes we can create a estimated
         // groundspeed vector
-        Vector2f ret(cosf(yaw), sinf(yaw));
+        Vector2f ret{_cos_yaw, _sin_yaw};
         ret *= airspeed;
         // adjust for estimated wind
         const Vector3f wind = wind_estimate();
@@ -146,7 +147,7 @@ Vector2f AP_AHRS_Backend::groundspeed_vector(void)
 /*
   calculate sin and cos of roll/pitch/yaw from a body_to_ned rotation matrix
  */
-void AP_AHRS_Backend::calc_trig(const Matrix3f &rot,
+void AP_AHRS::calc_trig(const Matrix3f &rot,
                         float &cr, float &cp, float &cy,
                         float &sr, float &sp, float &sy) const
 {
@@ -192,14 +193,8 @@ void AP_AHRS_Backend::calc_trig(const Matrix3f &rot,
 
 // update_trig - recalculates _cos_roll, _cos_pitch, etc based on latest attitude
 //      should be called after _dcm_matrix is updated
-void AP_AHRS_Backend::update_trig(void)
+void AP_AHRS::update_trig(void)
 {
-    if (_last_trim != _trim.get()) {
-        _last_trim = _trim.get();
-        _rotation_autopilot_body_to_vehicle_body.from_euler(_last_trim.x, _last_trim.y, 0.0f);
-        _rotation_vehicle_body_to_autopilot_body = _rotation_autopilot_body_to_vehicle_body.transposed();
-    }
-
     calc_trig(get_rotation_body_to_ned(),
               _cos_roll, _cos_pitch, _cos_yaw,
               _sin_roll, _sin_pitch, _sin_yaw);
@@ -208,7 +203,7 @@ void AP_AHRS_Backend::update_trig(void)
 /*
   update the centi-degree values
  */
-void AP_AHRS_Backend::update_cd_values(void)
+void AP_AHRS::update_cd_values(void)
 {
     roll_sensor  = degrees(roll) * 100;
     pitch_sensor = degrees(pitch) * 100;
@@ -290,14 +285,14 @@ void AP_AHRS::update_AOA_SSA(void)
 }
 
 // rotate a 2D vector from earth frame to body frame
-Vector2f AP_AHRS_Backend::earth_to_body2D(const Vector2f &ef) const
+Vector2f AP_AHRS::earth_to_body2D(const Vector2f &ef) const
 {
     return Vector2f(ef.x * _cos_yaw + ef.y * _sin_yaw,
                     -ef.x * _sin_yaw + ef.y * _cos_yaw);
 }
 
 // rotate a 2D vector from earth frame to body frame
-Vector2f AP_AHRS_Backend::body_to_earth2D(const Vector2f &bf) const
+Vector2f AP_AHRS::body_to_earth2D(const Vector2f &bf) const
 {
     return Vector2f(bf.x * _cos_yaw - bf.y * _sin_yaw,
                     bf.x * _sin_yaw + bf.y * _cos_yaw);
@@ -326,33 +321,33 @@ float AP_AHRS_Backend::get_EAS2TAS(void) const {
 }
 
 // return current vibration vector for primary IMU
-Vector3f AP_AHRS_Backend::get_vibration(void) const
+Vector3f AP_AHRS::get_vibration(void) const
 {
     return AP::ins().get_vibration_levels();
 }
 
-void AP_AHRS_Backend::set_takeoff_expected(bool b)
+void AP_AHRS::set_takeoff_expected(bool b)
 {
-    _flags.takeoff_expected = b;
+    takeoff_expected = b;
     takeoff_expected_start_ms = AP_HAL::millis();
 }
 
-void AP_AHRS_Backend::set_touchdown_expected(bool b)
+void AP_AHRS::set_touchdown_expected(bool b)
 {
-    _flags.touchdown_expected = b;
+    touchdown_expected = b;
     touchdown_expected_start_ms = AP_HAL::millis();
 }
 
 /*
   update takeoff/touchdown flags
  */
-void AP_AHRS_Backend::update_flags(void)
+void AP_AHRS::update_flags(void)
 {
     const uint32_t timeout_ms = 1000;
-    if (_flags.takeoff_expected && AP_HAL::millis() - takeoff_expected_start_ms > timeout_ms) {
-        _flags.takeoff_expected = false;
+    if (takeoff_expected && AP_HAL::millis() - takeoff_expected_start_ms > timeout_ms) {
+        takeoff_expected = false;
     }
-    if (_flags.touchdown_expected && AP_HAL::millis() - touchdown_expected_start_ms > timeout_ms) {
-        _flags.touchdown_expected = false;
+    if (touchdown_expected && AP_HAL::millis() - touchdown_expected_start_ms > timeout_ms) {
+        touchdown_expected = false;
     }
 }

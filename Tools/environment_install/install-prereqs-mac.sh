@@ -109,6 +109,10 @@ if maybe_prompt_user "Install python using pyenv [N/y]?" ; then
         echo "Installing pyenv"
         curl https://pyenv.run | bash
 
+        pushd $HOME/.pyenv
+        git fetch --tags
+        git checkout v2.0.4
+        popd
         exportline="export PYENV_ROOT=\$HOME/.pyenv"
         echo $exportline >> ~/$SHELL_LOGIN
         exportline="export PATH=\$PYENV_ROOT/bin:\$PATH"
@@ -144,7 +148,7 @@ if [[ $DO_AP_STM_ENV -eq 1 ]]; then
     install_arm_none_eabi_toolchain
 fi
 
-PYTHON_PKGS="future lxml pymavlink MAVProxy pexpect geocoder flake8"
+PYTHON_PKGS="future lxml pymavlink MAVProxy pexpect geocoder flake8 empy"
 # add some Python packages required for commonly-used MAVProxy modules and hex file generation:
 if [[ $SKIP_AP_EXT_ENV -ne 1 ]]; then
     PYTHON_PKGS="$PYTHON_PKGS intelhex gnureadline"
